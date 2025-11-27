@@ -5171,6 +5171,8 @@ GameObject:
   - component: {fileID: 956203897}
   - component: {fileID: 956203899}
   - component: {fileID: 956203898}
+  - component: {fileID: 956203900}
+  - component: {fileID: 956203901}
   m_Layer: 0
   m_Name: Player
   m_TagString: Player
@@ -5363,7 +5365,6 @@ MonoBehaviour:
     m_RotationOrder: 4
   secondaryChargeTimeRequired: 0.6
   isSecondaryChargeShotEnabled: 1
-  currentSecondaryChargedAttackSO: {fileID: 11400000, guid: 6b06e28b5b41cd844af7c2f2739fbfcd, type: 2}
   retrieveRange: 50
   projectileLayer:
     serializedVersion: 2
@@ -5495,6 +5496,86 @@ MonoBehaviour:
   cooldown: 5
   showDebugLogs: 0
   showDebugUI: 0
+--- !u!114 &956203900
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 956203889}
+  m_Enabled: 0
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 901b10c8367802048a2b930df010a46c, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  hammerPrefab: {fileID: 499222343195171404, guid: 125a6b92c8278974582eb27ced0af73e, type: 3}
+  hammerSpawnOffset: {x: 1.2, y: 0}
+  hammerSwingAngle: 150
+  hammerSwingDuration: 0.35
+  damage: 30
+  knockbackForce: 10
+  executeHealAmount: 30
+  hammerSwingCurve:
+    serializedVersion: 2
+    m_Curve:
+    - serializedVersion: 3
+      time: 0
+      value: 0
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0
+      outWeight: 0
+    - serializedVersion: 3
+      time: 1
+      value: 1
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0
+      outWeight: 0
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4
+  executionProjectilePrefab: {fileID: 6345581959748761854, guid: 6e01b8402e5736f47be3d902e89caacc, type: 3}
+  projectileSpeed: 15
+  projectileSpawnOffset: {x: 0, y: 0}
+  showDebugLogs: 0
+--- !u!114 &956203901
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 956203889}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f4be6e366b7860f448195a7c2cd3c2cd, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  currentStage: 1
+  totalExecutionCount: 0
+  baseBoxWidth: 3
+  baseBoxHeight: 2
+  boxCenterDistance: 2
+  baseDamage: 30
+  knockbackForce: 10
+  executeHealAmount: 30
+  executeKnockbackForce: 12
+  visualDuration: 0.3
+  stage1Color: {r: 1, g: 0.08972893, b: 0, a: 1}
+  stage2Color: {r: 0.0039215684, g: 1, b: 0.026808102, a: 1}
+  stage3Color: {r: 0, g: 0.122285366, b: 1, a: 1}
+  lineWidth: 0.1
+  enemyLayer:
+    serializedVersion: 2
+    m_Bits: 256
+  maxDetectCount: 32
+  quickStun: 0.12
+  showDebugLogs: 0
+  showDebugGizmos: 1
 --- !u!1 &960132361
 GameObject:
   m_ObjectHideFlags: 0
