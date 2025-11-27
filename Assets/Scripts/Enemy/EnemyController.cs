@@ -1,3 +1,4 @@
+using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Events;
@@ -26,6 +27,8 @@ public class EnemyController : MonoBehaviour, IStunnable
     [Header("Facing")]
     [Tooltip("플레이어가 followRange 내에 있을 때 자동으로 플레이어 방향(Z축 회전)으로 회전합니다.")]
     [SerializeField] private bool enableAutoRotateTowardsPlayer = true;
+
+    [SerializeField] private GameObject stunEffectTMP;
 
     private bool isStunned = false;
     private float stunTimer = 0f;
@@ -112,17 +115,6 @@ public class EnemyController : MonoBehaviour, IStunnable
         if (GetComponent<PullEffect>() != null)
             return;
 
-        if (isStunned)
-        {
-            stunTimer -= Time.deltaTime;
-            if (stunTimer <= 0)
-            {
-                isStunned = false;
-                if (showDebugLogs) Debug.Log($"EnemyController [{gameObject.name}]: 경직 해제!");
-            }
-            return;
-        }
-
         // 그로기 상태 진입 조건 체크
         if (groggySettings.enableGroggy && healthSystem != null && currentState != EnemyState.Groggy && currentState != EnemyState.Dead)
         {
@@ -141,6 +133,19 @@ public class EnemyController : MonoBehaviour, IStunnable
                 healthSystem.ForceDie();
             }
         }
+
+        if (isStunned)
+        {
+            stunTimer -= Time.deltaTime;
+            if (stunTimer <= 0)
+            {
+                isStunned = false;
+                stunEffectTMP.SetActive(false);
+                if (showDebugLogs) Debug.Log($"EnemyController [{gameObject.name}]: 경직 해제!");
+            }
+            return;
+        }
+       
 
         if (playerTarget == null) return;
 
@@ -211,6 +216,22 @@ public class EnemyController : MonoBehaviour, IStunnable
         }
     }
 
+    /// <summary>
+    /// 속박 상태 메서드 
+    /// </summary>
+    public void ApplyImpale(float duration)
+    {
+        stunEffectTMP.SetActive(true);
+
+        // 이동 정지 (기존 메서드 활용, 속도 0)
+        ApplyMovementStop(duration, 0f);
+
+        // 공격 등 행동 불가 (Stun 활용)
+        ApplyStun(duration);
+
+        if (showDebugLogs) Debug.Log($"EnemyController [{gameObject.name}]: 가시에 찔림(Impaled)! {duration}초간 행동 불가");
+    }
+
     public void ApplyStun(float duration)
     {
         isStunned = true;
@@ -271,14 +292,17 @@ public class EnemyController : MonoBehaviour, IStunnable
         if (showDebugLogs) Debug.Log($"EnemyController [{gameObject.name}]: 임시 이동속도 적용 targetSpeed={targetMoveSpeed:F2}, duration={duration:F2}s");
     }
 
-    private System.Collections.IEnumerator MovementStopRoutine(float duration)
+    private IEnumerator MovementStopRoutine(float duration)
     {
+        rb2D.constraints = RigidbodyConstraints2D.FreezeRotation;
+
         yield return new WaitForSeconds(duration);
         // restore only if we previously stopped movement
         if (movementStopped)
         {
             moveSpeed = savedMoveSpeed;
             movementStopped = false;
+            rb2D.constraints = RigidbodyConstraints2D.None;
             if (showDebugLogs) Debug.Log($"EnemyController [{gameObject.name}]: 이동 복원 (moveSpeed={moveSpeed:F2})");
         }
         movementStopCoroutine = null;
