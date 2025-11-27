@@ -19,6 +19,7 @@ GameObject:
   - component: {fileID: 5787777542074986240}
   - component: {fileID: 2666497141097456630}
   - component: {fileID: 7759118884188990233}
+  - component: {fileID: 8547000856757508377}
   m_Layer: 8
   m_Name: RangeEnemy
   m_TagString: Enemy
@@ -226,9 +227,16 @@ MonoBehaviour:
   followRange: 15
   attackRange: 12
   moveSpeed: 3
-  groggyHpPercent: 0.25
-  groggyColor: {r: 0.83018875, g: 0, b: 1, a: 1}
-  groggyReviveHealPercent: 0.25
+  groggySettings:
+    enableGroggy: 1
+    groggyHpPercent: 0.1
+    groggyColor: {r: 0.6792453, g: 0, b: 0.53724605, a: 1}
+    enableRecovery: 1
+    recoveryDelay: 5
+    recoveryHealthPercent: 0.5
+    additionalEffects:
+    - {fileID: 8547000856757508377}
+    showDebugLogs: 0
   hitsPerAmmo: 3
   maxAmmoPerKill: 3
   enableAutoRotateTowardsPlayer: 1
@@ -338,4 +346,20 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   defaultPoolSize: 8
   poolRoot: {fileID: 0}
+  showDebugLogs: 0
+--- !u!114 &8547000856757508377
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4187871074074745789}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0362f1da799473c43a5a0802a4ffae3a, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  uiPrefab: {fileID: 6757864005056154228, guid: 0dd5cb52f96f627439a1659a1c0b4aec, type: 3}
+  uiOffset: {x: 0, y: 0.3, z: 0}
+  uiScale: 0.01
   showDebugLogs: 0
