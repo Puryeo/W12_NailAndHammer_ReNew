@@ -14,12 +14,7 @@ public class EnemyController : MonoBehaviour, IStunnable
     [SerializeField] private float moveSpeed = 3f;
 
     [Header("Groggy Settings")]
-    [Tooltip("HP가 이 비율(0..1) 이하로 떨어지면 그로기 상태가 됩니다 (한 번만)")]
-    [Range(0f, 1f)]
-    [SerializeField] private float groggyHpPercent = 0.25f;
-    [SerializeField] private Color groggyColor = new Color(1f, 0.6f, 0.6f, 1f);
-    [Range(0f, 1f)]
-    [SerializeField] private float groggyReviveHealPercent = 0.25f;
+    [SerializeField] private GroggySettings groggySettings = new GroggySettings();
 
     [Header("Hit -> Ammo Reward")]
     [Tooltip("몇 번의 히트마다 1 ammo를 보상할지")]
@@ -128,13 +123,22 @@ public class EnemyController : MonoBehaviour, IStunnable
             return;
         }
 
-        // 그로기 상태 진입 조건: HP 비율이 임계값 이하로 떨어지면 한 번만 EnterGroggy 호출
-        if (healthSystem != null && currentState != EnemyState.Groggy && currentState != EnemyState.Dead)
+        // 그로기 상태 진입 조건 체크
+        if (groggySettings.enableGroggy && healthSystem != null && currentState != EnemyState.Groggy && currentState != EnemyState.Dead)
         {
             float ratio = healthSystem.GetCurrentHealth() / Mathf.Max(1f, healthSystem.GetMaxHealth());
-            if (ratio <= groggyHpPercent)
+            if (ratio <= groggySettings.groggyHpPercent)
             {
                 EnterGroggy();
+            }
+        }
+        // 그로기 비활성화 시 즉시 사망 처리
+        else if (!groggySettings.enableGroggy && healthSystem != null && currentState != EnemyState.Dead)
+        {
+            float currentHp = healthSystem.GetCurrentHealth();
+            if (currentHp <= 0 && !healthSystem.IsDead())
+            {
+                healthSystem.ForceDie();
             }
         }
 
@@ -282,31 +286,33 @@ public class EnemyController : MonoBehaviour, IStunnable
 
     public bool IsStunned() => isStunned;
 
-    // 그로기 진입 - 한 번만 상태 전환, 자동 복구 없음
+    // 그로기 진입
     public void EnterGroggy()
     {
         if (currentState == EnemyState.Groggy || currentState == EnemyState.Dead) return;
 
         currentState = EnemyState.Groggy;
 
-        if (spriteRenderer != null) spriteRenderer.color = groggyColor;
+        // 색상 변경
+        if (spriteRenderer != null) spriteRenderer.color = groggySettings.groggyColor;
 
         var he = GetComponent<HitEffect>();
-        if (he != null) he.ForceSetSavedOriginalColor(groggyColor);
+        if (he != null) he.ForceSetSavedOriginalColor(groggySettings.groggyColor);
 
-        if (showDebugLogs) Debug.Log($"EnemyController [{gameObject.name}]: 그로기 상태 진입 (HP ratio <= {groggyHpPercent})");
+        // GroggySettings에 처리 위임 (부활 타이머 시작 등)
+        groggySettings.OnEnterGroggy(this);
+
+        if (showDebugLogs) Debug.Log($"EnemyController [{gameObject.name}]: 그로기 상태 진입 (HP ratio <= {groggySettings.groggyHpPercent})");
     }
 
     public void ExitGroggy()
     {
         if (currentState != EnemyState.Groggy) return;
 
-        if (healthSystem != null)
-        {
-            float recoverAmount = healthSystem.GetMaxHealth() * groggyReviveHealPercent;
-            if (recoverAmount > 0f) healthSystem.Heal(recoverAmount);
-        }
+        // GroggySettings에 정리 요청 (타이머 중단 등)
+        groggySettings.OnExitGroggy(this);
 
+        // 색상 복원
         if (spriteRenderer != null && hasOriginalColor) spriteRenderer.color = originalColor;
 
         var he = GetComponent<HitEffect>();
@@ -314,7 +320,7 @@ public class EnemyController : MonoBehaviour, IStunnable
 
         currentState = EnemyState.Normal;
 
-        if (showDebugLogs) Debug.Log($"EnemyController [{gameObject.name}]: 그로기 해제 — 일부 체력 회복 및 정상 상태 복귀");
+        if (showDebugLogs) Debug.Log($"EnemyController [{gameObject.name}]: 그로기 해제 — 정상 상태 복귀");
     }
 
     private float GetCurrentMoveSpeed()
