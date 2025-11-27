@@ -5364,7 +5364,6 @@ MonoBehaviour:
     m_RotationOrder: 4
   secondaryChargeTimeRequired: 0.6
   isSecondaryChargeShotEnabled: 1
-  currentSecondaryChargedAttackSO: {fileID: 11400000, guid: d938265e6977f3e409a9c30bdd182a28, type: 2}
   retrieveRange: 50
   projectileLayer:
     serializedVersion: 2
@@ -5505,66 +5504,49 @@ MonoBehaviour:
   m_GameObject: {fileID: 956203889}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: e6f0a289d33ee534ab8df9a23a05153f, type: 3}
+  m_Script: {fileID: 11500000, guid: 755c9805cc61a2947aecaf702e0c447c, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  enableDebugKey: 1
-  targetCamSize: 10
-  zoomDuration: 0.5
-  guardianPrefab: {fileID: 8586520476908246501, guid: f8af252b743d5d34ea89df94548dcbc8, type: 3}
-  spawnOffset: {x: -2.5, y: 0}
-  guardianLocalZRotation: 0
-  lingerDuration: 1
-  fadeOutDuration: 0.5
-  hammerPrefab: {fileID: 2683279600985944763, guid: 527a06d60c4d0aa4388cb9094414c918, type: 3}
-  hammerLocalOffset: {x: 0, y: 0}
-  damage: 10
-  knockbackForce: 75
-  swingAngle: 270
-  swingDuration: 0.8
-  executeHealAmount: 20
-  swingCurve:
+  hammerPrefab: {fileID: 499222343195171404, guid: 460554a50deb0e84c897a8aac50ea1d6, type: 3}
+  rotationRadius: 1
+  baseDuration: 2
+  extensionPerKill: 1
+  maxDuration: 6
+  rotationsPerSecond: 2.5
+  damage: 30
+  knockbackForce: 10
+  executeHealAmount: 30
+  executeKnockbackMultiplier: 1.5
+  hitCooldown: 0.3
+  detectionRange: 10
+  enemyLayer:
+    serializedVersion: 2
+    m_Bits: 256
+  rotationSpeedCurve:
     serializedVersion: 2
     m_Curve:
     - serializedVersion: 3
-      time: 0
-      value: 0
-      inSlope: 0
-      outSlope: 0
-      tangentMode: 0
+      time: 0.05720971
+      value: 1.0003738
+      inSlope: 0.50933033
+      outSlope: 0.50933033
+      tangentMode: 34
       weightedMode: 0
       inWeight: 0
-      outWeight: 0
-    - serializedVersion: 3
-      time: 0.6433058
-      value: 0.25060803
-      inSlope: 1.3340987
-      outSlope: 1.3340987
-      tangentMode: 0
-      weightedMode: 0
-      inWeight: 0.33333334
-      outWeight: 0.37003213
-    - serializedVersion: 3
-      time: 0.8699306
-      value: 0.92110807
-      inSlope: 1.0065882
-      outSlope: 1.0065882
-      tangentMode: 0
-      weightedMode: 0
-      inWeight: 0.33333334
       outWeight: 0.33333334
     - serializedVersion: 3
-      time: 1
-      value: 1
-      inSlope: 0
-      outSlope: 0
-      tangentMode: 0
+      time: 1.0362396
+      value: 1.4990234
+      inSlope: 0.50933033
+      outSlope: 0.50933033
+      tangentMode: 34
       weightedMode: 0
-      inWeight: 0
+      inWeight: 0.33333334
       outWeight: 0
     m_PreInfinity: 2
     m_PostInfinity: 2
     m_RotationOrder: 4
+  showDebugLogs: 0
 --- !u!1 &960132361
 GameObject:
   m_ObjectHideFlags: 0

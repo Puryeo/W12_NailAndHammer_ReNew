@@ -11,9 +11,9 @@ GameObject:
   - component: {fileID: 3955312685153522268}
   - component: {fileID: 9059039965320527161}
   - component: {fileID: 8708494667697266119}
-  - component: {fileID: 2812274868453075957}
+  - component: {fileID: 475680393732089437}
   m_Layer: 0
-  m_Name: Hammer
+  m_Name: Hammer with callback
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -137,7 +137,7 @@ SpriteRenderer:
   m_WasSpriteAssigned: 0
   m_MaskInteraction: 0
   m_SpriteSortPoint: 0
---- !u!114 &2812274868453075957
+--- !u!114 &475680393732089437
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -146,7 +146,7 @@ MonoBehaviour:
   m_GameObject: {fileID: 499222343195171404}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 1160ee20c6de6ab4490617fd8e027ceb, type: 3}
+  m_Script: {fileID: 11500000, guid: da05a57dca25a7d4cb401d886cca47b2, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
   hitQueueDelay: 0.05
@@ -162,11 +162,11 @@ MonoBehaviour:
   maxOverlapResults: 32
   hitTiming: 0.5
   hitActiveDuration: 0.3
-  showDebugLogs: 1
+  showDebugLogs: 0
   showGizmo: 1
   previewSwingAngle: 210
   previewRadius: 3
-  gizmoColor: {r: 1, g: 0, b: 0, a: 1}
+  gizmoColor: {r: 1, g: 0, b: 0, a: 0.36862746}
   gizmoSegments: 24
 --- !u!1 &4353632335671954481
 GameObject:
