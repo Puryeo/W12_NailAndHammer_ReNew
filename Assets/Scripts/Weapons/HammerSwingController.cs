@@ -37,6 +37,9 @@ public class HammerSwingController : MonoBehaviour
     private float midSweep = 0f;
     private CameraShake cameraShake;
 
+    // --- new: prefab original local scale 보관 ---
+    private Vector3 originalLocalScale = Vector3.one;
+
     [Header("Options")]
     [SerializeField] private bool invertSwingDirection = true;
 
@@ -106,6 +109,9 @@ public class HammerSwingController : MonoBehaviour
 
         col = GetComponent<Collider2D>();
         sr = GetComponent<SpriteRenderer>();
+
+        // store original localScale of the instantiated hammer (prefab intent)
+        originalLocalScale = transform.localScale;
 
         if (col != null) col.enabled = false;
         if (Camera.main != null) cameraShake = Camera.main.GetComponent<CameraShake>();
@@ -183,7 +189,18 @@ public class HammerSwingController : MonoBehaviour
 
         if (ownerTransform != null)
         {
+            // parent and position
             transform.SetParent(ownerTransform, false);
+
+            // --- scale correction: ensure world scale equals originalLocalScale ---
+            Vector3 parentLossy = ownerTransform.lossyScale;
+            Vector3 correctedLocal = new Vector3(
+                SafeDiv(originalLocalScale.x, parentLossy.x),
+                SafeDiv(originalLocalScale.y, parentLossy.y),
+                SafeDiv(originalLocalScale.z, parentLossy.z)
+            );
+            transform.localScale = correctedLocal;
+
             transform.localPosition = localOffset;
             float half = swingAngle * 0.5f;
             float startSweep = Mathf.Lerp(-half, half, speedCurve.Evaluate(0f)) - midSweep;
@@ -289,6 +306,12 @@ public class HammerSwingController : MonoBehaviour
         Destroy(gameObject, 0.01f);
 
         isSwinging = false;
+    }
+
+    private float SafeDiv(float a, float b)
+    {
+        if (Mathf.Approximately(b, 0f)) return a; // 분모 0이면 보정하지 않음(원래 크기 유지)
+        return a / b;
     }
 
     private IEnumerator TemporarilyEnableCollider(float duration)

@@ -57,7 +57,7 @@ public class PlayerCombat : MonoBehaviour
     [SerializeField] private bool isSecondaryChargeShotEnabled = true;
 
     [Tooltip("현재 장착된 우클릭 차징공격 (ScriptableObject)")]
-    [SerializeField] private ScriptableObject currentSecondaryChargedAttackSO;
+    //[SerializeField] private ScriptableObject currentSecondaryChargedAttackSO;
 
     // 내부 상태
     private bool isSecondaryCharging = false;
@@ -87,12 +87,14 @@ public class PlayerCombat : MonoBehaviour
         // 테스트 컨트롤러 찾기 (있으면)
         testController = GetComponent<ProjectileTestController>();
 
+        currentSecondaryChargedAttack = GetComponent<ISecondaryChargedAttack>();
+
         // 우클릭 차징공격 초기화
-        if (currentSecondaryChargedAttackSO != null && currentSecondaryChargedAttackSO is ISecondaryChargedAttack)
+/*        if (currentSecondaryChargedAttackSO != null && currentSecondaryChargedAttackSO is ISecondaryChargedAttack)
         {
             currentSecondaryChargedAttack = currentSecondaryChargedAttackSO as ISecondaryChargedAttack;
             Debug.Log($"[Combat] 우클릭 차징공격 초기화: {currentSecondaryChargedAttack.GetAttackName()}");
-        }
+        }*/
     }
 
     private void Update()
