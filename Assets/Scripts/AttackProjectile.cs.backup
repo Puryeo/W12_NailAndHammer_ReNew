@@ -1,0 +1,937 @@
+using System.Collections;
+using UnityEngine;
+
+/// <summary>
+/// AttackProjectile (뱀파이어 헌터 Ver.)
+/// 역할: 투사체의 이동, 충돌 판별, 벽 박힘(Stick), 사슬 회수(Retrieval) 및 경로 타격 처리
+/// </summary>
+[RequireComponent(typeof(Rigidbody2D))]
+[RequireComponent(typeof(Collider2D))]
+[RequireComponent(typeof(SpriteRenderer))]
+public class AttackProjectile : MonoBehaviour
+{
+    [Header("General Settings")]
+    [Tooltip("벽에 박혔을 때 유지될 시간 (0 = 무한)")]
+    [SerializeField] private float stuckLifetime = 0f;
+
+    [Tooltip("이 투사체가 회수 가능한 타입(나무 말뚝)인지 여부")]
+    [SerializeField] private bool isRetrievable = true;
+
+    [Header("Return Settings")]
+    [Tooltip("회수 시 되돌아오는 속도")]
+    [SerializeField] private float returnSpeed = 20f;
+    [Tooltip("회수 시 경로상의 적에게 입히는 대미지 비율 (1.0 = 100%)")]
+    [SerializeField] private float returnDamageRatio = 0.5f;
+    [Tooltip("플레이어와의 거리로 흡수 판단 (충돌 실패 보완)")]
+    [SerializeField] private float pickupDistance = 0.65f;
+
+    [Header("Hit Feedback Settings (Inspector)")]
+    [Tooltip("적중(직접 히트) 시 적용할 히트스탑 강도")]
+    [SerializeField] private global::EHitStopStrength hitStopOnEnemyHit = global::EHitStopStrength.Weak;
+    [Tooltip("적중(직접 히트) 시 적용할 카메라 셰이크 강도")]
+    [SerializeField] private global::EShakeStrength shakeOnEnemyHit = global::EShakeStrength.Weak;
+    [Tooltip("회수(리턴) 경로상 적중 시 적용할 히트스탑 강도")]
+    [SerializeField] private global::EHitStopStrength hitStopOnReturnHit = global::EHitStopStrength.Weak;
+    [Tooltip("회수(리턴) 경로상 적중 시 적용할 카메라 셰이크 강도")]
+    [SerializeField] private global::EShakeStrength shakeOnReturnHit = global::EShakeStrength.Weak;
+
+    [Header("Auto Retrieve (Wall)")]
+    [Tooltip("벽에 박힌 말뚝을 자동 회수하기 위한 반경 (플레이어가 반경 내로 들어오면 자동 회수 시작)")]
+    [SerializeField] private float autoRetrieveRange = 3f;
+
+    // 내부 데이터
+    private AttackPatternData pattern;
+    private float damage;
+    private string targetTag;    // 적 태그 (예: "Enemy")
+    private string wallTag = "Wall";
+    private Transform attacker;  // 발사한 주체 (플레이어)
+
+    // BloodStake 관련
+    private bool isBloodStake = false;
+    private float bloodHpCost = 0f;
+
+    // 컴포넌트
+    private Rigidbody2D rb2D;
+    private Collider2D col2D;
+    private SpriteRenderer spriteRenderer;
+
+    // 상태 플래그
+    private bool isInitialized = false;
+    private bool isStuck = false;      // 벽/적에 박혀있는가?
+    private bool isReturning = false;  // 회수 중인가?
+    private float lifeTimer;
+
+    // 캐싱
+    private CameraShake cameraShake; // 피격감을 위한 카메라 셰이크
+
+    // 현재 부착(host) 중인 EnemyController (있으면 적에게 박혀 있음)
+    private EnemyController currentHostEnemy;
+
+    // Host transform (적 또는 벽 트랜스폼). 부모로 붙이지 않고 위치/회전을 계산하기 위해 사용
+    private Transform stuckHostTransform;
+    private Vector3 stuckLocalPosition;      // host 기준 로컬 포지션
+    private Quaternion stuckLocalRotation;   // host 기준 로컬 회전 (상대 회전)
+
+    // 플레이어 캐시 (자동 회수 범위 검사에 사용)
+    private Transform playerTransform;
+
+    // 원래 로컬 스케일(풀 재사용 시 복원용)
+    private Vector3 originalLocalScale;
+
+    [Header("Debug")]
+    [SerializeField] private bool showDebugLogs = false;
+
+    // 회수/중복 방지
+    private bool suppressAmmoOnReturn = false;
+    private bool hasBeenCollected = false;
+
+    private void Awake()
+    {
+        rb2D = GetComponent<Rigidbody2D>();
+        col2D = GetComponent<Collider2D>();
+        spriteRenderer = GetComponent<SpriteRenderer>();
+
+        if (Camera.main != null) cameraShake = Camera.main.GetComponent<CameraShake>();
+
+        var playerObj = GameObject.FindGameObjectWithTag("Player");
+        if (playerObj != null) playerTransform = playerObj.transform;
+
+        originalLocalScale = transform.localScale;
+    }
+
+    /// <summary>
+    /// 투사체 초기화 (AttackManager에서 호출)
+    /// </summary>
+    public void Initialize(
+        AttackPatternData pattern,
+        float damage,
+        string targetTag,
+        Transform attacker,
+        Color? overrideColor = null,
+        Vector2? overrideDirection = null,
+        bool isBloodStake = false,
+        float bloodHpCost = 0f)
+    {
+        this.pattern = pattern;
+        this.damage = damage;
+        this.targetTag = targetTag;
+        this.attacker = attacker;
+
+        // Blood 정보 보존
+        this.isBloodStake = isBloodStake;
+        this.bloodHpCost = bloodHpCost;
+
+        // Collider 초기화
+        if (col2D != null) col2D.isTrigger = true;
+
+        if (pattern != null && spriteRenderer != null && pattern.attackSprite != null)
+            spriteRenderer.sprite = pattern.attackSprite;
+
+        if (overrideColor.HasValue && spriteRenderer != null)
+            spriteRenderer.color = overrideColor.Value;
+
+        // 물리 안전 초기화
+        rb2D.gravityScale = 0f;
+        rb2D.linearDamping = 0f;
+        rb2D.angularDamping = 0f;
+
+        currentHostEnemy = null;
+        stuckHostTransform = null;
+        isStuck = false;
+        isReturning = false;
+        suppressAmmoOnReturn = false;
+        hasBeenCollected = false;
+
+        // 복원할 스케일 보장
+        transform.localScale = originalLocalScale;
+
+        // 인스턴스는 패턴 기반으로 retrievable 설정을 덮어쓴다
+        if (pattern != null)
+        {
+            this.isRetrievable = pattern.isRetrievable;
+        }
+
+        if (pattern != null)
+        {
+            if (pattern.attackType == EAttackType.Projectile)
+            {
+                rb2D.bodyType = RigidbodyType2D.Dynamic;
+
+                Vector2 direction = overrideDirection ?? (attacker != null ? (Vector2)attacker.right : Vector2.right);
+                if (direction == Vector2.zero) direction = Vector2.right;
+                direction.Normalize();
+
+                float angle = Mathf.Atan2(direction.y, direction.x) * Mathf.Rad2Deg;
+                transform.rotation = Quaternion.Euler(0, 0, angle);
+
+                rb2D.linearVelocity = direction * pattern.projectileSpeed;
+                lifeTimer = pattern.projectileLifetime;
+            }
+            else if (pattern.attackType == EAttackType.MeleeSlash)
+            {
+                rb2D.bodyType = RigidbodyType2D.Kinematic;
+                transform.SetParent(attacker);
+                transform.localPosition = pattern.hitboxOffset;
+                lifeTimer = pattern.attackDuration;
+            }
+        }
+
+        isInitialized = true;
+    }
+
+    private void Update()
+    {
+        if (!isInitialized) return;
+
+        // 박힌 상태 & host가 있으면 host를 따라 위치/회전 업데이트
+        if (isStuck && !isReturning && stuckHostTransform != null)
+        {
+            // host가 파괴되었으면 분리
+            if (stuckHostTransform == null)
+            {
+                ForceDetachFromHost();
+                return;
+            }
+
+            // host 기준 로컬 좌표를 월드로 변환하여 위치/회전 유지(부모 스케일 영향 없음)
+            transform.position = stuckHostTransform.TransformPoint(stuckLocalPosition);
+            transform.rotation = stuckHostTransform.rotation * stuckLocalRotation;
+
+            // 자동 회수 (벽에 박혔을 때 host가 wall 태그라면 player 거리 체크)
+            if (stuckHostTransform.CompareTag(wallTag))
+            {
+                if (playerTransform == null)
+                {
+                    var p = GameObject.FindGameObjectWithTag("Player");
+                    if (p != null) playerTransform = p.transform;
+                }
+
+                if (playerTransform != null)
+                {
+                    float dist = Vector2.Distance(playerTransform.position, transform.position);
+                    if (dist <= autoRetrieveRange)
+                    {
+                        if (showDebugLogs) Debug.Log($"AttackProjectile [{gameObject.name}]: 자동 회수 범위 진입");
+                        StartReturn();
+                        return;
+                    }
+                }
+            }
+
+            if (stuckLifetime > 0f)
+            {
+                lifeTimer -= Time.deltaTime;
+                if (lifeTimer <= 0) DissolveAndDestroy();
+            }
+
+            return;
+        }
+
+        if (isReturning)
+        {
+            if (attacker == null)
+            {
+                if (showDebugLogs) Debug.Log($"AttackProjectile [{gameObject.name}]: isReturning but attacker==null -> ReturnOrDestroy");
+                ReturnOrDestroy();
+                return;
+            }
+
+            // 거리 기반 흡수: 충돌 미검출로 인한 누수 방지
+            float sqr = (attacker.position - transform.position).sqrMagnitude;
+            if (sqr <= pickupDistance * pickupDistance)
+            {
+                if (!hasBeenCollected)
+                {
+                    if (showDebugLogs) Debug.Log($"AttackProjectile [{gameObject.name}]: Auto-pickup by attacker (dist={Mathf.Sqrt(sqr):F2})");
+                    // 즉시 수집
+                    CompleteRetrieval();
+                    return;
+                }
+            }
+
+            // 기본 회수 이동
+            Vector2 dir = (attacker.position - transform.position).normalized;
+            transform.Translate(dir * returnSpeed * Time.deltaTime, Space.World);
+
+            float angle = Mathf.Atan2(dir.y, dir.x) * Mathf.Rad2Deg;
+            transform.rotation = Quaternion.Euler(0, 0, angle);
+            return;
+        }
+
+        if (isStuck)
+        {
+            if (stuckLifetime > 0f)
+            {
+                lifeTimer -= Time.deltaTime;
+                if (lifeTimer <= 0) DissolveAndDestroy();
+            }
+            return;
+        }
+
+        lifeTimer -= Time.deltaTime;
+        if (lifeTimer <= 0) ReturnOrDestroy();
+    }
+
+    private void OnTriggerEnter2D(Collider2D other)
+    {
+        if (!isInitialized) return;
+
+        // 유틸: 태그 검사 실패 시 부모에서 EnemyController가 있으면 적으로 취급
+        bool IsTargetMatch(Collider2D col)
+        {
+            if (string.IsNullOrEmpty(targetTag) == false && col.CompareTag(targetTag)) return true;
+            return col.GetComponentInParent<EnemyController>() != null;
+        }
+
+        // 변경: 이미 박힌 말뚝(stuck)인 경우, 다른 충돌(적의 공격 등)으로 인해 잘못 회수되는 것을 방지하기 위해
+        // isStuck && !isReturning 상태에서는 트리거를 무시한다.
+        if (isStuck && !isReturning)
+        {
+            if (showDebugLogs) Debug.Log($"AttackProjectile [{gameObject.name}]: 충돌 무시 (isStuck && !isReturning) other={other.name} tag={other.tag}");
+            return;
+        }
+
+        // Friendly-fire 방지: 발사자가 적(EnemyController 보유)이고 충돌 대상도 적이면 무시
+        var otherEnemy = other.GetComponentInParent<EnemyController>();
+        var attackerEnemy = attacker != null ? attacker.GetComponentInParent<EnemyController>() : null;
+        if (attackerEnemy != null && otherEnemy != null)
+        {
+            if (showDebugLogs) Debug.Log($"AttackProjectile [{gameObject.name}]: Friendly fire ignored (attacker={attackerEnemy.name}, target={otherEnemy.name})");
+            return;
+        }
+
+        // 회수 중
+        if (isReturning)
+        {
+            // 플레이어 도착
+            if (attacker != null && (other.transform == attacker || other.transform.IsChildOf(attacker)))
+            {
+                CompleteRetrieval();
+                return;
+            }
+
+            // 회수 경로상 적 히트
+            if (IsTargetMatch(other))
+            {
+                if (!(attacker != null && (other.transform == attacker || other.transform.IsChildOf(attacker))))
+                {
+                    ApplyDamageAndEffects(other, returnDamageRatio);
+                    ApplyHitFeedback(hitStopOnReturnHit, shakeOnReturnHit);
+                }
+                return;
+            }
+
+            return;
+        }
+
+        // 발사 중
+        if (other.CompareTag(wallTag))
+        {
+            if (pattern != null && pattern.attackType == EAttackType.Projectile && isRetrievable && !isStuck)
+            {
+                StickToWall(other);
+            }
+            else if (!isRetrievable)
+            {
+                ReturnOrDestroy();
+            }
+            return;
+        }
+
+        if (IsTargetMatch(other))
+        {
+            // 발사자(플레이어)에 붙는 문제 방지
+            if (attacker != null && (other.transform == attacker || other.transform.IsChildOf(attacker))) return;
+
+            ApplyDamageAndEffects(other, 1.0f);
+            ApplyHitFeedback(hitStopOnEnemyHit, shakeOnEnemyHit);
+
+            if (pattern != null && pattern.attackType == EAttackType.Projectile && isRetrievable && !isStuck)
+            {
+                StickToEnemy(other);
+            }
+            else
+            {
+                ReturnOrDestroy();
+            }
+        }
+    }
+
+    private void SetParentPreserveWorld(Transform newParent)
+    {
+        if (newParent == null) { transform.SetParent(null); return; }
+
+        Vector3 worldPos = transform.position;
+        Quaternion worldRot = transform.rotation;
+        Vector3 worldScale = new Vector3(transform.lossyScale.x, transform.lossyScale.y, transform.lossyScale.z);
+
+        transform.SetParent(newParent, true);
+
+        Vector3 parentScale = newParent.lossyScale;
+        parentScale.x = Mathf.Abs(parentScale.x) < 1e-6f ? 1f : parentScale.x;
+        parentScale.y = Mathf.Abs(parentScale.y) < 1e-6f ? 1f : parentScale.y;
+        parentScale.z = Mathf.Abs(parentScale.z) < 1e-6f ? 1f : parentScale.z;
+
+        Vector3 localScale = new Vector3(
+            worldScale.x / parentScale.x,
+            worldScale.y / parentScale.y,
+            worldScale.z / parentScale.z
+        );
+
+        localScale.x = float.IsNaN(localScale.x) ? 1f : Mathf.Clamp(localScale.x, 0.01f, 10f);
+        localScale.y = float.IsNaN(localScale.y) ? 1f : Mathf.Clamp(localScale.y, 0.01f, 10f);
+        localScale.z = float.IsNaN(localScale.z) ? 1f : Mathf.Clamp(localScale.z, 0.01f, 10f);
+
+        transform.localScale = localScale;
+
+        transform.position = worldPos;
+        transform.rotation = worldRot;
+    }
+
+    private void AttachToColliderWithScale(Collider2D hitCollider)
+    {
+        if (hitCollider == null) return;
+
+        Vector2 contactWorld = hitCollider.ClosestPoint(transform.position);
+        Vector2 offsetDir = ((Vector2)transform.position - contactWorld);
+        if (offsetDir.sqrMagnitude > 1e-6f) offsetDir = offsetDir.normalized;
+        else offsetDir = (Vector2)transform.right;
+
+        float baseOffset = 0.02f;
+        float sizeBased = baseOffset;
+        if (spriteRenderer != null)
+        {
+            sizeBased = Mathf.Max(sizeBased, spriteRenderer.bounds.extents.magnitude * 0.08f);
+        }
+        else if (col2D != null)
+        {
+            sizeBased = Mathf.Max(sizeBased, col2D.bounds.extents.magnitude * 0.08f);
+        }
+
+        Vector3 worldPos = contactWorld + offsetDir * sizeBased;
+        Quaternion worldRot = transform.rotation;
+
+        stuckHostTransform = hitCollider.transform;
+        stuckLocalPosition = stuckHostTransform.InverseTransformPoint(worldPos);
+        stuckLocalRotation = Quaternion.Inverse(stuckHostTransform.rotation) * worldRot;
+
+        transform.SetParent(null);
+        transform.position = worldPos;
+        transform.rotation = worldRot;
+
+        transform.localScale = originalLocalScale;
+    }
+
+    private void StickToWall(Collider2D wallCollider)
+    {
+        if (isStuck) return;
+        isStuck = true;
+
+        if (showDebugLogs) Debug.Log($"📌 {gameObject.name} 벽에 박힘!");
+
+        rb2D.linearVelocity = Vector2.zero;
+        rb2D.angularVelocity = 0f;
+        rb2D.bodyType = RigidbodyType2D.Static;
+
+        if (spriteRenderer != null) spriteRenderer.color = new Color(0.7f, 0.7f, 0.7f, 1f);
+
+        AttachToColliderWithScale(wallCollider);
+
+        lifeTimer = stuckLifetime;
+
+        if (cameraShake != null) cameraShake.ShakeWeak();
+    }
+
+    private void StickToEnemy(Collider2D enemyCollider)
+    {
+        if (isStuck) return;
+        isStuck = true;
+
+        if (showDebugLogs) Debug.Log($"📌 {gameObject.name} 적에 박힘!");
+
+        rb2D.linearVelocity = Vector2.zero;
+        rb2D.angularVelocity = 0f;
+        rb2D.bodyType = RigidbodyType2D.Static;
+
+        if (spriteRenderer != null) spriteRenderer.color = new Color(0.7f, 0.7f, 0.7f, 1f);
+
+        AttachToColliderWithScale(enemyCollider);
+
+        EnemyController enemyCtrl = enemyCollider.GetComponent<EnemyController>() ?? enemyCollider.GetComponentInParent<EnemyController>();
+        if (enemyCtrl != null)
+        {
+            currentHostEnemy = enemyCtrl;
+            enemyCtrl.RegisterStuckProjectile(this);
+            if (showDebugLogs) Debug.Log($"AttackProjectile [{gameObject.name}]: Registered to enemy {enemyCtrl.name} id={GetInstanceID()} active={gameObject.activeInHierarchy}");
+        }
+
+        lifeTimer = stuckLifetime;
+
+        if (cameraShake != null) cameraShake.ShakeWeak();
+    }
+
+    /// <summary>
+    /// 회수 시작 (suppressAmmo: CompleteRetrieval 시 ammo 회복을 하지 않음)
+    /// - 이제 isStuck 여부에 상관없이 강제 회수 시작 가능
+    /// - usePickupAnimation=true면 플레이어로 끌어오는 애니메이션을 재생
+    /// </summary>
+    public void StartReturn(bool suppressAmmo = false, bool immediatePickup = true)
+    {
+        if (isReturning)
+        {
+            if (showDebugLogs) Debug.Log($"AttackProjectile [{gameObject.name}]: StartReturn 호출되었으나 이미 isReturning=true");
+            return;
+        }
+
+        // 안전: 현재 host에 등록되어 있으면 unregister (중복 제거 방지)
+        UnregisterFromHost();
+
+        // 상태 변경
+        isStuck = false;
+        isReturning = true;
+        suppressAmmoOnReturn = suppressAmmo;
+        hasBeenCollected = false;
+
+        if (showDebugLogs) Debug.Log($"⛓️ {gameObject.name} 말뚝 회수 시작 (StartReturn) suppress={suppressAmmo}, immediate={immediatePickup}, id={GetInstanceID()}, attacker={(attacker!=null?attacker.name:"null")} active={gameObject.activeInHierarchy}");
+
+        stuckHostTransform = null;
+        transform.SetParent(null);
+
+        // 물리/충돌 설정: 회수용으로 안전하게 전환
+        if (rb2D != null)
+        {
+            rb2D.bodyType = RigidbodyType2D.Kinematic;
+            rb2D.linearVelocity = Vector2.zero;
+            rb2D.angularVelocity = 0f;
+        }
+
+        if (col2D != null)
+        {
+            col2D.enabled = true;
+            col2D.isTrigger = true;
+        }
+
+        // attacker fallback: 캐시된 playerTransform 또는 씬에서 Player 태그로 찾기
+        if (attacker == null)
+        {
+            if (playerTransform != null) attacker = playerTransform;
+            else
+            {
+                var p = GameObject.FindGameObjectWithTag("Player");
+                if (p != null) { attacker = p.transform; playerTransform = attacker; }
+            }
+            if (showDebugLogs) Debug.Log($"AttackProjectile [{gameObject.name}]: StartReturn attacker fallback -> {(attacker!=null?attacker.name:"null")}");
+        }
+
+        transform.localScale = originalLocalScale;
+        if (spriteRenderer != null) spriteRenderer.color = Color.white;
+
+        // immediatePickup == true 일 때만 즉시 텔레포트 + 즉시 CompleteRetrieval
+        if (immediatePickup)
+        {
+            if (attacker != null)
+            {
+                transform.position = attacker.position;
+                transform.rotation = attacker.rotation;
+                CompleteRetrieval();
+            }
+            else
+            {
+                // attacker가 없으면 ReturnOrDestroy 로직으로 안전히 처리
+                ReturnOrDestroy();
+            }
+        }
+        // immediatePickup == false 면 isReturning 플래그를 세운 채로 Update() 루틴에서 이동/흡수 처리가 이루어짐
+    }
+
+    private void CompleteRetrieval()
+    {
+        if (hasBeenCollected) return;
+        hasBeenCollected = true;
+        isReturning = false;
+
+        if (showDebugLogs) Debug.Log($"AttackProjectile [{gameObject.name}]: CompleteRetrieval called. attacker={(attacker!=null?attacker.name:"null")}, suppressAmmo={suppressAmmoOnReturn}");
+
+        PlayerCombat pc = null;
+
+        if (attacker != null)
+        {
+            pc = attacker.GetComponent<PlayerCombat>();
+        }
+
+        if (pc == null)
+        {
+            var playerObj = GameObject.FindGameObjectWithTag("Player");
+            if (playerObj != null) pc = playerObj.GetComponent<PlayerCombat>();
+        }
+
+        if (pc != null)
+        {
+            if (isBloodStake)
+            {
+                // BloodStake: 회수 시 사용한 HP를 100% 회복(요구사항 B)
+                pc.OnExecutionSuccess(bloodHpCost, 0);
+                if (showDebugLogs) Debug.Log($"AttackProjectile [{gameObject.name}]: BloodStake collected -> healed {bloodHpCost} HP (player={pc.name})");
+            }
+            else
+            {
+                if (!suppressAmmoOnReturn)
+                {
+                    pc.RecoverAmmo(1);
+                    if (showDebugLogs) Debug.Log($"AttackProjectile [{gameObject.name}]: CompleteRetrieval -> player recovered 1 ammo (player={pc.name})");
+                }
+                else
+                {
+                    if (showDebugLogs) Debug.Log($"AttackProjectile [{gameObject.name}]: CompleteRetrieval -> suppressAmmoOnReturn==true, ammo not recovered");
+                }
+            }
+        }
+        else
+        {
+            if (showDebugLogs) Debug.LogWarning($"AttackProjectile [{gameObject.name}]: CompleteRetrieval -> PlayerCombat not found, ammo/HP not recovered");
+        }
+
+        UnregisterFromHost();
+
+        if (AttackManager.Instance != null) AttackManager.Instance.ReleaseStake(gameObject);
+        else Destroy(gameObject);
+    }
+
+    public void ForceDetachFromHost()
+    {
+        currentHostEnemy = null;
+        stuckHostTransform = null;
+        transform.SetParent(null);
+
+        isStuck = false;
+        isReturning = false;
+
+        if (rb2D != null) rb2D.bodyType = RigidbodyType2D.Kinematic;
+        if (col2D != null) col2D.isTrigger = true;
+        if (spriteRenderer != null) spriteRenderer.color = Color.white;
+
+        transform.localScale = originalLocalScale;
+    }
+
+    private void UnregisterFromHost()
+    {
+        if (currentHostEnemy != null)
+        {
+            if (showDebugLogs) Debug.Log($"AttackProjectile [{gameObject.name}]: UnregisterFromHost -> removing from {currentHostEnemy.name} id={GetInstanceID()}");
+            currentHostEnemy.RemoveStuckProjectile(this);
+            currentHostEnemy = null;
+        }
+        else
+        {
+            if (showDebugLogs) Debug.Log($"AttackProjectile [{gameObject.name}]: UnregisterFromHost -> no currentHostEnemy id={GetInstanceID()}");
+        }
+    }
+
+    private void ApplyDamageAndEffects(Collider2D target, float damageRatio)
+    {
+        float finalDamage = damage * damageRatio;
+
+        HealthSystem hs = target.GetComponent<HealthSystem>() ?? target.GetComponentInParent<HealthSystem>();
+        if (hs != null)
+        {
+            hs.TakeDamage(finalDamage);
+        }
+        else
+        {
+            var damageable = target.GetComponent<IDamageable>() ?? target.GetComponentInParent<IDamageable>();
+            if (damageable != null) damageable.TakeDamage(finalDamage);
+        }
+
+        var enemyCtrl = target.GetComponent<EnemyController>() ?? target.GetComponentInParent<EnemyController>();
+        if (enemyCtrl != null)
+        {
+            enemyCtrl.RegisterHit(1, attacker);
+        }
+
+        if (!isReturning && pattern != null)
+        {
+            if (pattern.stunDuration > 0)
+            {
+                IStunnable stunnable = target.GetComponent<IStunnable>() ?? target.GetComponentInParent<IStunnable>();
+                if (stunnable != null) stunnable.ApplyStun(pattern.stunDuration);
+            }
+
+            if (pattern.knockbackStrength != EKnockbackStrength.None)
+            {
+                Rigidbody2D targetRb = target.GetComponent<Rigidbody2D>() ?? target.GetComponentInParent<Rigidbody2D>();
+                if (targetRb != null)
+                {
+                    Vector2 knockbackDir;
+                    if (targetRb.transform != null)
+                        knockbackDir = (targetRb.transform.position - transform.position).normalized;
+                    else
+                        knockbackDir = (target.transform.position - transform.position).normalized;
+
+                    float force = Mathf.Max(0f, pattern.knockbackDistance) * 5f;
+                    switch (pattern.knockbackStrength)
+                    {
+                        case EKnockbackStrength.Weak: force *= 0.8f; break;
+                        case EKnockbackStrength.Small: force *= 1.0f; break;
+                        case EKnockbackStrength.Medium: force *= 1.6f; break;
+                        case EKnockbackStrength.Strong: force *= 2.6f; break;
+                    }
+
+                    targetRb.AddForce(knockbackDir * force, ForceMode2D.Impulse);
+                }
+            }
+
+            if (cameraShake != null) cameraShake.ShakeWeak();
+        }
+    }
+
+    private void ApplyHitFeedback(global::EHitStopStrength hs, global::EShakeStrength ss)
+    {
+        HitEffectManager.PlayHitEffect(EHitSource.Stake, hs, ss, transform.position);
+    }
+
+    private void DissolveAndDestroy()
+    {
+        UnregisterFromHost();
+
+        if (AttackManager.Instance != null) AttackManager.Instance.ReleaseStake(gameObject);
+        else Destroy(gameObject);
+    }
+
+    private void ReturnOrDestroy()
+    {
+        if (showDebugLogs) Debug.Log($"AttackProjectile [{gameObject.name}]: ReturnOrDestroy called (isReturning={isReturning}, isStuck={isStuck}) id={GetInstanceID()}");
+        UnregisterFromHost();
+
+        if (AttackManager.Instance != null) AttackManager.Instance.ReleaseStake(gameObject);
+        else Destroy(gameObject);
+    }
+
+    public void ClearAttacker()
+    {
+        attacker = null;
+    }
+
+    public System.Collections.IEnumerator RetrievalAnimationRoutine(
+        Transform collector,
+        float pullDistance = 0.6f,
+        float hitStopSeconds = 0.1f,
+        float moveToPlayerDuration = 0.25f,
+        LineRenderer linePrefab = null,
+        global::EHitStopStrength hitStop = global::EHitStopStrength.Weak,
+        global::EShakeStrength shake = global::EShakeStrength.Weak,
+        GameObject endDecorator = null) // 추가된 파라미터 (옵션)
+    {
+        if (collector == null)
+        {
+            if (showDebugLogs) Debug.Log($"[Retrieval] {gameObject.name}: abort - collector==null");
+            yield break;
+        }
+
+        if (showDebugLogs) Debug.Log($"[Retrieval] {gameObject.name}: START. collector={collector.name} active={gameObject.activeInHierarchy}");
+
+        // 안전 해제: host 등록 해제
+        UnregisterFromHost();
+        if (showDebugLogs) Debug.Log($"[Retrieval] {gameObject.name}: UnregisterFromHost called. currentHostEnemy={(currentHostEnemy!=null?currentHostEnemy.name:"null")}");
+
+        isStuck = false;
+        isReturning = false;
+        suppressAmmoOnReturn = false;
+        hasBeenCollected = false;
+
+        attacker = collector; // CompleteRetrieval 시 보상 대상
+        if (showDebugLogs) Debug.Log($"[Retrieval] {gameObject.name}: attacker set to {attacker.name}");
+
+        if (rb2D != null) rb2D.bodyType = RigidbodyType2D.Kinematic;
+        if (col2D != null) { col2D.enabled = false; col2D.isTrigger = true; }
+
+        Vector3 startPos = transform.position;
+        Quaternion startRot = transform.rotation;
+        Vector3 dirToPlayer = (collector.position - startPos).normalized;
+        if (dirToPlayer == Vector3.zero) dirToPlayer = transform.right;
+        Vector3 pullPos = startPos + dirToPlayer * pullDistance;
+
+        // LineRenderer 준비
+        LineRenderer lr = null;
+        GameObject lrGo = null;
+        if (linePrefab != null)
+        {
+            // linePrefab이 씬 인스턴스인지(이미 Instantiate된 객체) 판별
+            bool isSceneInstance = false;
+            try
+            {
+                isSceneInstance = linePrefab.gameObject.scene.IsValid();
+            }
+            catch { isSceneInstance = false; }
+
+            if (isSceneInstance)
+            {
+                // 이미 Skill에서 Instantiate한 인스턴스가 전달된 경우 그대로 사용
+                lr = linePrefab;
+                lrGo = lr.gameObject;
+                if (showDebugLogs) Debug.Log($"[Retrieval] {gameObject.name}: using provided LineRenderer instance {lrGo.name}");
+            }
+            else
+            {
+                // 프리팹 에셋이 전달된 경우엔 새로 Instantiate
+                lr = Instantiate(linePrefab);
+                lrGo = lr?.gameObject;
+                if (showDebugLogs) Debug.Log($"[Retrieval] {gameObject.name}: instantiated LineRenderer from prefab {lrGo?.name}");
+            }
+        }
+        else
+        {
+            // 런타임 생성(프리팹/인스턴스가 없을 때)
+            lrGo = new GameObject($"RetrievalLine_{gameObject.name}");
+            lr = lrGo.AddComponent<LineRenderer>();
+            lr.material = new Material(Shader.Find("Sprites/Default"));
+            lr.positionCount = 2;
+            lr.startWidth = lr.endWidth = 0.05f;
+            lr.numCapVertices = 4;
+            lr.useWorldSpace = true;
+            lr.sortingOrder = 1000;
+            if (showDebugLogs) Debug.Log($"[Retrieval] {gameObject.name}: created runtime LineRenderer {lrGo.name}");
+        }
+
+        // 안전 초기화
+        if (lr != null)
+        {
+            lr.positionCount = 2;
+            lr.useWorldSpace = true;
+            // set starting positions: [0]=collector, [1]=stake
+            lr.SetPosition(0, collector.position);
+            lr.SetPosition(1, transform.position);
+        }
+
+        // end decorator (선 끝 장식) - 추가
+        GameObject endDec = null;
+        if (endDecorator != null)
+        {
+            try
+            {
+                endDec = Instantiate(endDecorator, transform.position, transform.rotation);
+                if (endDec != null)
+                {
+                    endDec.SetActive(true);
+                    // 보이도록 정렬 보정 시도
+                    var sr = endDec.GetComponent<SpriteRenderer>() ?? endDec.GetComponentInChildren<SpriteRenderer>();
+                    if (sr != null) sr.sortingOrder = Mathf.Max(sr.sortingOrder, 1001);
+                }
+                if (showDebugLogs) Debug.Log($"[Retrieval] {gameObject.name}: instantiated endDecorator {endDec?.name}");
+            }
+            catch (System.Exception ex)
+            {
+                if (showDebugLogs) Debug.LogWarning($"[Retrieval] {gameObject.name}: endDecorator Instantiate failed -> {ex.Message}");
+            }
+        }
+
+        // 1) 짧은 앞당김
+        float stepDuration = 0.08f;
+        float t = 0f;
+        if (showDebugLogs) Debug.Log($"[Retrieval] {gameObject.name}: pull start pos={startPos} pullPos={pullPos}");
+        while (t < stepDuration)
+        {
+            t += Time.deltaTime;
+            float f = Mathf.Clamp01(t / stepDuration);
+            transform.position = Vector3.Lerp(startPos, pullPos, f);
+            transform.rotation = startRot;
+            if (lr != null)
+            {
+                lr.SetPosition(0, collector.position);
+                lr.SetPosition(1, transform.position); // 항상 stake 위치를 라인 끝으로
+            }
+            if (endDec != null) endDec.transform.position = transform.position;
+            yield return null;
+        }
+        if (showDebugLogs) Debug.Log($"[Retrieval] {gameObject.name}: pull end pos={transform.position}");
+
+        // 2) 히트 이펙트(히트스탑 + 카메라 셰이크)
+        try
+        {
+            if (showDebugLogs) Debug.Log($"[Retrieval] {gameObject.name}: PlayHitEffect at {transform.position} (hitStop={hitStop}, shake={shake})");
+            HitEffectManager.PlayHitEffect(EHitSource.Stake, hitStop, shake, transform.position);
+        }
+        catch (System.Exception ex)
+        {
+            if (showDebugLogs) Debug.LogWarning($"[Retrieval] {gameObject.name}: HitEffectManager exception -> {ex.Message}");
+        }
+
+        // 히트스탑 동안은 타임스케일 변동 가능하므로 실시간 대기 사용
+        if (hitStopSeconds > 0f)
+        {
+            if (showDebugLogs) Debug.Log($"[Retrieval] {gameObject.name}: waiting hitStopSeconds={hitStopSeconds} (Realtime)");
+            yield return new WaitForSecondsRealtime(hitStopSeconds);
+        }
+
+        // 2b) 히트 파티클 재생 (임시 컴포넌트 생성)
+        try
+        {
+            if (showDebugLogs) Debug.Log($"[Retrieval] {gameObject.name}: spawning HitParticleEffect at {transform.position}");
+            GameObject tmp = new GameObject($"Temp_HitParticle_{GetInstanceID()}");
+            var hpe = tmp.AddComponent<HitParticleEffect>();
+            hpe.PlayHitParticle(transform.position);
+            Destroy(tmp, 2.0f);
+        }
+        catch (System.Exception ex)
+        {
+            if (showDebugLogs) Debug.LogWarning($"[Retrieval] {gameObject.name}: HitParticleEffect exception -> {ex.Message}");
+        }
+
+        // 3) 플레이어로 흡수 애니메이션
+        t = 0f;
+        Vector3 midStart = transform.position;
+        if (showDebugLogs) Debug.Log($"[Retrieval] {gameObject.name}: start moveToPlayerDuration={moveToPlayerDuration} from {midStart} to {collector.position}");
+        while (t < moveToPlayerDuration)
+        {
+            t += Time.deltaTime;
+            float f = Mathf.Clamp01(t / moveToPlayerDuration);
+            transform.position = Vector3.Lerp(midStart, collector.position, f);
+            transform.rotation = startRot;
+            if (lr != null)
+            {
+                lr.SetPosition(0, collector.position);
+                lr.SetPosition(1, transform.position); // stake가 항상 라인 끝에 붙음
+            }
+            if (endDec != null) endDec.transform.position = transform.position;
+            yield return null;
+        }
+        if (showDebugLogs) Debug.Log($"[Retrieval] {gameObject.name}: reached player pos={transform.position}");
+
+        // 4) 선 정리 (반드시 CompleteRetrieval 전에 수행)
+        if (lrGo != null)
+        {
+            if (showDebugLogs) Debug.Log($"[Retrieval] {gameObject.name}: destroying line {lrGo.name}");
+            Destroy(lrGo);
+        }
+        if (endDec != null)
+        {
+            if (showDebugLogs) Debug.Log($"[Retrieval] {gameObject.name}: destroying end decorator {endDec.name}");
+            Destroy(endDec);
+        }
+
+        // 5) 도착 처리 -> 기존 CompleteRetrieval 재사용
+        try
+        {
+            if (showDebugLogs) Debug.Log($"[Retrieval] {gameObject.name}: calling CompleteRetrieval()");
+            CompleteRetrieval();
+        }
+        catch (System.Exception ex)
+        {
+            if (showDebugLogs) Debug.LogWarning($"[Retrieval] {gameObject.name}: CompleteRetrieval exception -> {ex.Message}");
+            try
+            {
+                UnregisterFromHost();
+                if (AttackManager.Instance != null) AttackManager.Instance.ReleaseStake(gameObject);
+                else Destroy(gameObject);
+            }
+            catch { }
+        }
+
+        if (showDebugLogs) Debug.Log($"[Retrieval] {gameObject.name}: END");
+        yield break;
+    }
+
+    public EnemyController GetHostEnemy()
+    {
+        return currentHostEnemy;
+    }
+}

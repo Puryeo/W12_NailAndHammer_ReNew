@@ -1,0 +1,71 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 876d6881ffb362140838cfcc3d857a80, type: 3}
+  m_Name: ImpaleBindingConfig
+  m_EditorClassIdentifier: 
+  damage: 10
+  speed: 14
+  lifetime: 5
+  isRetrievable: 1
+  collisionType: 2
+  retrievalType: 2
+  returnSpeed: 20
+  returnDamageRatio: 0.5
+  canImpale: 1
+  maxImpaleCount: 10
+  enemySpacing: 0.3
+  accelerateOnImpale: 1
+  impaleSpeedMultiplier: 1.3
+  maxImpalingDistance: 50
+  wallImpactDamage: 10
+  applyStunOnWallImpact: 1
+  wallImpactStunDuration: 2
+  bindingDuration: 3
+  bindingSlowAmount: 0.5
+  pullForce: 15
+  pullWallImpactDamage: 30
+  pullStopDistance: 1.5
+  pullDuration: 1
+  pullDetachDistance: 2
+  enableLineRenderer: 1
+  linePrefab: {fileID: 0}
+  endDecoratorPrefab: {fileID: 0}
+  pullDistance: 0.6
+  hitStopSeconds: 0.1
+  moveToPlayerDuration: 0.25
+  spawnInterval: 0.04
+  retrievalCurve:
+    serializedVersion: 2
+    m_Curve:
+    - serializedVersion: 3
+      time: 0
+      value: 0
+      inSlope: 1
+      outSlope: 1
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0
+      outWeight: 0
+    - serializedVersion: 3
+      time: 1
+      value: 1
+      inSlope: 1
+      outSlope: 1
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0
+      outWeight: 0
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4
+  hitStop: 1
+  shake: 1

@@ -1,0 +1,80 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 876d6881ffb362140838cfcc3d857a80, type: 3}
+  m_Name: BasicPullOneConfig
+  m_EditorClassIdentifier: 
+  damage: 10
+  speed: 14
+  lifetime: 5
+  isRetrievable: 1
+  collisionType: 1
+  retrievalType: 4
+  returnSpeed: 10
+  returnDamageRatio: 0.5
+  canImpale: 0
+  maxImpaleCount: 5
+  enemySpacing: 0.3
+  accelerateOnImpale: 1
+  impaleSpeedMultiplier: 1.3
+  maxImpalingDistance: 10
+  wallImpactDamage: 20
+  applyStunOnWallImpact: 1
+  wallImpactStunDuration: 2
+  bindingDuration: 0.5
+  bindingSlowAmount: 0.5
+  pullForce: 15
+  pullWallImpactDamage: 20
+  pullStopDistance: 3
+  pullDuration: 1
+  pullDetachDistance: 2
+  enableLineRenderer: 1
+  linePrefab: {fileID: 0}
+  endDecoratorPrefab: {fileID: 0}
+  pullDistance: 1.5
+  hitStopSeconds: 0.1
+  moveToPlayerDuration: 0.7
+  spawnInterval: 0.1
+  retrievalCurve:
+    serializedVersion: 2
+    m_Curve:
+    - serializedVersion: 3
+      time: 0
+      value: 0
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0
+      outWeight: 0
+    - serializedVersion: 3
+      time: 0.70919293
+      value: 0.1987314
+      inSlope: 0.96838593
+      outSlope: 0.96838593
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0.33333334
+      outWeight: 0.33333334
+    - serializedVersion: 3
+      time: 1
+      value: 1
+      inSlope: 2
+      outSlope: 2
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0
+      outWeight: 0
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4
+  hitStop: 3
+  shake: 2

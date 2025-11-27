@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(mkdir -p:*)",
+      "Bash(if not exist \"C:\\Users\\jungle\\Documents\\JungleWeekUnity\\nailAndHammer\\Assets\\Scripts\\Editor\" mkdir \"C:\\Users\\jungle\\Documents\\JungleWeekUnity\\nailAndHammer\\Assets\\Scripts\\Editor\")",
+      "Bash(cat:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}
