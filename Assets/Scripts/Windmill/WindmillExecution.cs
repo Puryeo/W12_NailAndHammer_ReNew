@@ -4,12 +4,12 @@ using System.Collections.Generic;
 
 /// <summary>
 /// Windmill Execution (윈드밀 처형)
+/// - 플레이어 컴포넌트로 직접 추가
 /// - 플레이어 중심으로 망치를 360도 회전시키며 휘두름
 /// - 그로기 상태 적이 있으면 처형 발동
 /// - 적 처치 시마다 1초씩 연장 (최대 6초)
 /// </summary>
-[CreateAssetMenu(fileName = "WindmillExecution", menuName = "Combat/Secondary Charged Attack/Windmill Execution")]
-public class WindmillExecution : ScriptableObject, ISecondaryChargedAttack
+public class WindmillExecution : MonoBehaviour, ISecondaryChargedAttack
 {
     [Header("Hammer Settings")]
     [Tooltip("망치 프리팹 (HammerSwingController 컴포넌트 필요)")]
@@ -61,6 +61,17 @@ public class WindmillExecution : ScriptableObject, ISecondaryChargedAttack
     [Header("Debug")]
     [SerializeField] private bool showDebugLogs = false;
 
+    private PlayerCombat playerCombat;
+
+    private void Awake()
+    {
+        playerCombat = GetComponent<PlayerCombat>();
+        if (playerCombat == null)
+        {
+            Debug.LogError("[WindmillExecution] PlayerCombat 컴포넌트를 찾을 수 없습니다!");
+        }
+    }
+
     public void Execute(PlayerCombat owner, Transform ownerTransform)
     {
         if (hammerPrefab == null)
@@ -74,12 +85,12 @@ public class WindmillExecution : ScriptableObject, ISecondaryChargedAttack
 
         if (!hasGroggyEnemy)
         {
-            if (showDebugLogs) Debug.Log($"[{GetAttackName()}] 그로기 상태의 적이 없어 처형이 취소되었습니다.");
+            Debug.Log($"[{GetAttackName()}] 그로기 상태의 적이 없어 처형이 취소되었습니다.");
             return;
         }
 
         // 코루틴 실행
-        owner.StartCoroutine(ExecuteWindmillRotation(owner, ownerTransform));
+        StartCoroutine(ExecuteWindmillRotation(owner, ownerTransform));
     }
 
     public string GetAttackName() => "Windmill Execution";
@@ -98,7 +109,7 @@ public class WindmillExecution : ScriptableObject, ISecondaryChargedAttack
         pivotObj.transform.localRotation = Quaternion.identity;
 
         // 망치 생성 (Pivot의 자식으로, 오프셋 위치에)
-        GameObject hammerObj = Object.Instantiate(hammerPrefab, pivotObj.transform.position, Quaternion.identity);
+        GameObject hammerObj = Instantiate(hammerPrefab, pivotObj.transform.position, Quaternion.identity);
         hammerObj.transform.SetParent(pivotObj.transform);
         hammerObj.transform.localPosition = Vector3.right * rotationRadius;
         hammerObj.transform.localRotation = Quaternion.identity;
@@ -175,7 +186,7 @@ public class WindmillExecution : ScriptableObject, ISecondaryChargedAttack
         }
 
         // Pivot과 망치 제거
-        Object.Destroy(pivotObj);
+        Destroy(pivotObj);
 
         int totalKills = windmillBehavior.GetTotalKills();
         if (showDebugLogs)
@@ -189,6 +200,8 @@ public class WindmillExecution : ScriptableObject, ISecondaryChargedAttack
     {
         Collider2D[] colliders = Physics2D.OverlapCircleAll(center, detectionRange, enemyLayer);
 
+        Debug.Log($"[{GetAttackName()}] 탐지 시작: 범위={detectionRange}, 발견된 콜라이더={colliders.Length}");
+
         foreach (var col in colliders)
         {
             if (col == null) continue;
@@ -199,17 +212,32 @@ public class WindmillExecution : ScriptableObject, ISecondaryChargedAttack
                 enemyCtrl = col.GetComponentInParent<EnemyController>();
             }
 
-            if (enemyCtrl != null && enemyCtrl.IsGroggy())
+            if (enemyCtrl != null)
             {
-                if (showDebugLogs)
-                    Debug.Log($"[{GetAttackName()}] 그로기 적 발견: {enemyCtrl.name}");
-                return true;
+                bool isGroggy = enemyCtrl.IsGroggy();
+                Debug.Log($"[{GetAttackName()}] 적 발견: {enemyCtrl.name}, 그로기={isGroggy}");
+
+                if (isGroggy)
+                {
+                    Debug.Log($"[{GetAttackName()}] ✅ 그로기 적 발견! 처형 발동: {enemyCtrl.name}");
+                    return true;
+                }
             }
         }
 
-        if (showDebugLogs)
-            Debug.Log($"[{GetAttackName()}] 범위 내 그로기 적 없음 (탐지 범위: {detectionRange})");
+        Debug.LogWarning($"[{GetAttackName()}] ❌ 범위 내 그로기 적 없음 (탐지 범위: {detectionRange})");
         return false;
+    }
+
+    private void OnDrawGizmosSelected()
+    {
+        // 그로기 탐지 범위 시각화
+        Gizmos.color = Color.yellow;
+        Gizmos.DrawWireSphere(transform.position, detectionRange);
+
+        // 망치 회전 반경 시각화
+        Gizmos.color = Color.cyan;
+        Gizmos.DrawWireSphere(transform.position, rotationRadius);
     }
 }
 

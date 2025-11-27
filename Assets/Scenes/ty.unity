@@ -5171,6 +5171,7 @@ GameObject:
   - component: {fileID: 956203897}
   - component: {fileID: 956203899}
   - component: {fileID: 956203898}
+  - component: {fileID: 956203900}
   m_Layer: 0
   m_Name: Player
   m_TagString: Player
@@ -5363,7 +5364,7 @@ MonoBehaviour:
     m_RotationOrder: 4
   secondaryChargeTimeRequired: 0.6
   isSecondaryChargeShotEnabled: 1
-  currentSecondaryChargedAttackSO: {fileID: 11400000, guid: 1e7577a8eff80734a9a7a3357580129d, type: 2}
+  currentSecondaryChargedAttackSO: {fileID: 0}
   retrieveRange: 50
   projectileLayer:
     serializedVersion: 2
@@ -5495,6 +5496,58 @@ MonoBehaviour:
   cooldown: 5
   showDebugLogs: 0
   showDebugUI: 0
+--- !u!114 &956203900
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 956203889}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 755c9805cc61a2947aecaf702e0c447c, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  hammerPrefab: {fileID: 499222343195171404, guid: 460554a50deb0e84c897a8aac50ea1d6, type: 3}
+  rotationRadius: 1.5
+  baseDuration: 2
+  extensionPerKill: 1
+  maxDuration: 6
+  rotationsPerSecond: 2.5
+  damage: 30
+  knockbackForce: 10
+  executeHealAmount: 30
+  executeKnockbackMultiplier: 1.5
+  hitCooldown: 0.3
+  detectionRange: 10
+  enemyLayer:
+    serializedVersion: 2
+    m_Bits: 256
+  rotationSpeedCurve:
+    serializedVersion: 2
+    m_Curve:
+    - serializedVersion: 3
+      time: 0.05720971
+      value: 1.0003738
+      inSlope: 0.50933033
+      outSlope: 0.50933033
+      tangentMode: 34
+      weightedMode: 0
+      inWeight: 0
+      outWeight: 0.33333334
+    - serializedVersion: 3
+      time: 1.0362396
+      value: 1.4990234
+      inSlope: 0.50933033
+      outSlope: 0.50933033
+      tangentMode: 34
+      weightedMode: 0
+      inWeight: 0.33333334
+      outWeight: 0
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4
+  showDebugLogs: 0
 --- !u!1 &960132361
 GameObject:
   m_ObjectHideFlags: 0
