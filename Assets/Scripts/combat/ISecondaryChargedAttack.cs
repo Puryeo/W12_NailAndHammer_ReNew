@@ -15,6 +15,6 @@ public interface ISecondaryChargedAttack
 
     /// <summary>
     /// 공격 이름 (디버그/UI용)
-    /// </summary>
+    /// </summary>a
     string GetAttackName();
 }
