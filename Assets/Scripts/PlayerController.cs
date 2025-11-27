@@ -141,13 +141,19 @@ public class PlayerController : MonoBehaviour
             if (playerCombat != null) playerCombat.TryFireBloodStake();
         }
 
-        // 우클릭 (또는 E): 망치 처형
-        if (Input.GetMouseButtonDown(1) || Input.GetKeyDown(KeyCode.E))
+        // --- 우클릭 ---
+        // 우클릭 누름: 차징 시작
+        if (Input.GetMouseButtonDown(1))
         {
-            if (playerCombat != null) playerCombat.TrySwingHammer();
+            if (playerCombat != null) playerCombat.OnSecondaryDown();
+        }
+        // 우클릭 뗌: 망치(처형X) or 차징공격(처형O)
+        if (Input.GetMouseButtonUp(1))
+        {
+            if (playerCombat != null) playerCombat.OnSecondaryUp();
         }
 
-        // R키: 사슬 회수 (기획 변경으로 사용하지 않는 경우 주석 처리 가능)
+        // R키: 사슬 회수
         if (Input.GetKeyDown(KeyCode.R))
         {
             if (playerCombat != null) playerCombat.TryRetrieveStake();

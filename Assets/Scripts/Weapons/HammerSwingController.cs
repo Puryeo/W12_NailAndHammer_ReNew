@@ -44,6 +44,8 @@ public class HammerSwingController : MonoBehaviour
     [SerializeField] private float quickStun = 0.12f;
 
     [Header("Execution")]
+    [Tooltip("처형 기능 활성화 여부")]
+    [SerializeField] private bool enableExecution = true;
     [Tooltip("처형 시 적용할 넉백 강도 (임펄스)")]
     [SerializeField] private float executeKnockbackForce = 12f;
 
@@ -89,7 +91,7 @@ public class HammerSwingController : MonoBehaviour
     private HashSet<int> alreadyHitIds;
     private bool hitProcessed = false;
 
-    public void Initialize(PlayerCombat owner, Transform ownerTransform, float damage, float knockback, float swingAngle, float swingDuration, float executeHealAmount, Vector2 localOffset, AnimationCurve speedCurve)
+    public void Initialize(PlayerCombat owner, Transform ownerTransform, float damage, float knockback, float swingAngle, float swingDuration, float executeHealAmount, Vector2 localOffset, AnimationCurve speedCurve, bool enableExecution = true)
     {
         this.ownerCombat = owner;
         this.ownerTransform = ownerTransform;
@@ -99,6 +101,7 @@ public class HammerSwingController : MonoBehaviour
         this.swingDuration = Mathf.Max(0.01f, swingDuration);
         this.executeHealAmount = executeHealAmount;
         this.localOffset = localOffset;
+        this.enableExecution = enableExecution;
         if (speedCurve != null) this.speedCurve = speedCurve;
 
         col = GetComponent<Collider2D>();
@@ -331,7 +334,7 @@ public class HammerSwingController : MonoBehaviour
 
             // 처리 (각도 필터 없음: 오버랩으로만 판단)
             alreadyHitIds.Add(id);
-            if (enemyCtrl.IsGroggy())
+            if (enableExecution && enemyCtrl.IsGroggy())
             {
                 int stackReward = enemyCtrl.ConsumeStacks(true, true, ownerCombat); // defer 반환으로 프레임 분산
                 enemyCtrl.MarkExecuted();
@@ -410,7 +413,7 @@ public class HammerSwingController : MonoBehaviour
 
         var enemyHealth = other.GetComponent<HealthSystem>() ?? other.GetComponentInParent<HealthSystem>();
 
-        if (enemyCtrl != null && enemyCtrl.IsGroggy())
+        if (enableExecution && enemyCtrl != null && enemyCtrl.IsGroggy())
         {
             int stackReward = enemyCtrl.ConsumeStacks(true, true, ownerCombat); // defer
             enemyCtrl.MarkExecuted();
@@ -674,7 +677,7 @@ public class HammerSwingController : MonoBehaviour
         Vector2 worldCenter = ownerTransform != null ? (Vector2)ownerTransform.TransformPoint(localOffset) : (Vector2)transform.position;
         Vector2 hitDir = ((Vector2)target.transform.position - worldCenter).normalized;
 
-        if (enemyCtrl != null && enemyCtrl.IsGroggy())
+        if (enableExecution && enemyCtrl != null && enemyCtrl.IsGroggy())
         {
             enemyCtrl.ConsumeStacks(true, true, ownerCombat);
             enemyCtrl.MarkExecuted();

@@ -5361,6 +5361,9 @@ MonoBehaviour:
     m_PreInfinity: 2
     m_PostInfinity: 2
     m_RotationOrder: 4
+  secondaryChargeTimeRequired: 0.6
+  isSecondaryChargeShotEnabled: 1
+  currentSecondaryChargedAttackSO: {fileID: 11400000, guid: 6b06e28b5b41cd844af7c2f2739fbfcd, type: 2}
   retrieveRange: 50
   projectileLayer:
     serializedVersion: 2

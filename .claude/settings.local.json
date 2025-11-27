@@ -3,7 +3,19 @@
     "allow": [
       "Bash(mkdir -p:*)",
       "Bash(if not exist \"C:\\Users\\jungle\\Documents\\JungleWeekUnity\\nailAndHammer\\Assets\\Scripts\\Editor\" mkdir \"C:\\Users\\jungle\\Documents\\JungleWeekUnity\\nailAndHammer\\Assets\\Scripts\\Editor\")",
-      "Bash(cat:*)"
+      "Bash(cat:*)",
+      "Bash(where.exe:*)",
+      "Bash(dir \"%APPDATA%\\.claude\\skills\")",
+      "Bash(dir \"%USERPROFILE%\\.claude\\skills\")",
+      "Bash(dir \"%APPDATA%\\.claude\")",
+      "Bash(dir \"%USERPROFILE%\\.claude\")",
+      "Bash(npm config get:*)",
+      "Bash(dir \"%APPDATA%\\npm\\node_modules\\@anthropic\\claude-code\\skills\")",
+      "Bash(dir \"%APPDATA%\\npm\\node_modules\\claude-code\\skills\")",
+      "Bash(where /r %USERPROFILE% unity-cs-helper.md)",
+      "Bash(findstr:*)",
+      "Bash(powershell -Command:*)",
+      "Skill(unity-cs-helper)"
     ],
     "deny": [],
     "ask": []

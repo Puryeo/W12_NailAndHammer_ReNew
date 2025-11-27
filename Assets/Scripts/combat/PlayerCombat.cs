@@ -49,6 +49,21 @@ public class PlayerCombat : MonoBehaviour
     [Tooltip("스윙 진행을 제어하는 애니메이션 커브 (시간 0->1)")]
     [SerializeField] private AnimationCurve hammerSwingCurve = AnimationCurve.EaseInOut(0f, 0f, 1f, 1f);
 
+    [Header("우클릭 공격 (Secondary)")]
+    [Tooltip("우클릭 차징 시간 (초)")]
+    [SerializeField] private float secondaryChargeTimeRequired = 1.0f;
+
+    [Tooltip("우클릭 차징공격 활성화 여부")]
+    [SerializeField] private bool isSecondaryChargeShotEnabled = true;
+
+    [Tooltip("현재 장착된 우클릭 차징공격 (ScriptableObject)")]
+    [SerializeField] private ScriptableObject currentSecondaryChargedAttackSO;
+
+    // 내부 상태
+    private bool isSecondaryCharging = false;
+    private float secondaryChargeTimer = 0f;
+    private ISecondaryChargedAttack currentSecondaryChargedAttack;
+
     [Header("Skill: Chain Retrieve")]
     [SerializeField] private float retrieveRange = 10f; // 회수 가능 거리
     [SerializeField] private LayerMask projectileLayer; // 투사체 레이어
@@ -71,6 +86,13 @@ public class PlayerCombat : MonoBehaviour
 
         // 테스트 컨트롤러 찾기 (있으면)
         testController = GetComponent<ProjectileTestController>();
+
+        // 우클릭 차징공격 초기화
+        if (currentSecondaryChargedAttackSO != null && currentSecondaryChargedAttackSO is ISecondaryChargedAttack)
+        {
+            currentSecondaryChargedAttack = currentSecondaryChargedAttackSO as ISecondaryChargedAttack;
+            Debug.Log($"[Combat] 우클릭 차징공격 초기화: {currentSecondaryChargedAttack.GetAttackName()}");
+        }
     }
 
     private void Update()
@@ -79,10 +101,16 @@ public class PlayerCombat : MonoBehaviour
         if (fireTimer > 0) fireTimer -= Time.deltaTime;
         if (hammerTimer > 0) hammerTimer -= Time.deltaTime;
 
-        // 차지 진행 (PlayerController에서 OnPrimaryDown/Up으로 제어)
+        // 좌클릭 차지 진행 (PlayerController에서 OnPrimaryDown/Up으로 제어)
         if (isCharging)
         {
             chargeTimer += Time.deltaTime;
+        }
+
+        // 우클릭 차지 진행
+        if (isSecondaryCharging)
+        {
+            secondaryChargeTimer += Time.deltaTime;
         }
     }
 
@@ -253,7 +281,7 @@ public class PlayerCombat : MonoBehaviour
     /// <summary>
     /// 망치 휘두르기 (RMB/E) - 프리팹 기반 회전 휘두르기
     /// </summary>
-    public void TrySwingHammer()
+    public void TrySwingHammer(bool enableExecution = true)
     {
         if (hammerTimer > 0) return;
         if (hammerPrefab == null)
@@ -282,7 +310,8 @@ public class PlayerCombat : MonoBehaviour
                 swingDuration: hammerSwingDuration,
                 executeHealAmount: hammerExecuteHeal,
                 localOffset: hammerSpawnOffset,
-                speedCurve: hammerSwingCurve
+                speedCurve: hammerSwingCurve,
+                enableExecution: enableExecution
             );
         }
         else
@@ -439,4 +468,72 @@ public class PlayerCombat : MonoBehaviour
 
         Debug.Log($"[Combat] 피 말뚝 발사! HP -{hpCost:F1} (남은 HP: {healthSystem.GetCurrentHealth():F1})");
     }
+
+    // ==================== 우클릭 공격 시스템 ====================
+
+    /// <summary>
+    /// 우클릭 누름 - 차징 시작
+    /// </summary>
+    public void OnSecondaryDown()
+    {
+        if (hammerTimer > 0) return; // 망치 쿨타임 체크
+        isSecondaryCharging = true;
+        secondaryChargeTimer = 0f;
+    }
+
+    /// <summary>
+    /// 우클릭 뗌 - 망치(처형 X) or 차징공격(처형 O)
+    /// </summary>
+    public void OnSecondaryUp()
+    {
+        if (!isSecondaryCharging) return;
+        isSecondaryCharging = false;
+
+        // 차징 시간 충족 여부에 따라 분기
+        if (isSecondaryChargeShotEnabled && secondaryChargeTimer >= secondaryChargeTimeRequired)
+        {
+            TryFireSecondaryChargedAttack();
+        }
+        else
+        {
+            TrySwingHammer(enableExecution: false); // 기본 망치 (처형 X)
+        }
+    }
+
+    /// <summary>
+    /// 우클릭 차징공격 실행 (전략패턴)
+    /// </summary>
+    private void TryFireSecondaryChargedAttack()
+    {
+        if (hammerTimer > 0) return;
+
+        if (currentSecondaryChargedAttack == null)
+        {
+            Debug.LogWarning("현재 장착된 우클릭 차징공격이 없습니다.");
+            return;
+        }
+
+        hammerTimer = hammerCooldown; // 쿨타임 적용
+
+        // 전략패턴 Execute 호출
+        currentSecondaryChargedAttack.Execute(this, transform);
+
+        Debug.Log($"[Combat] 우클릭 차징공격 발사! ({currentSecondaryChargedAttack.GetAttackName()})");
+    }
+
+    /// <summary>
+    /// 우클릭 차징공격 교체 (외부 업그레이드 시스템에서 호출)
+    /// </summary>
+    public void SetSecondaryChargedAttack(ISecondaryChargedAttack attack)
+    {
+        currentSecondaryChargedAttack = attack;
+        Debug.Log($"[Combat] 우클릭 차징공격 교체: {attack?.GetAttackName()}");
+    }
+
+    /// <summary>
+    /// 우클릭 차징공격 상태 조회 (UI용)
+    /// </summary>
+    public float GetSecondaryChargeProgress() => secondaryChargeTimeRequired > 0f ? Mathf.Clamp01(secondaryChargeTimer / secondaryChargeTimeRequired) : 1f;
+    public bool IsSecondaryCharging() => isSecondaryCharging;
+    public bool IsSecondaryChargeReady() => isSecondaryCharging && secondaryChargeTimer >= secondaryChargeTimeRequired;
 }
