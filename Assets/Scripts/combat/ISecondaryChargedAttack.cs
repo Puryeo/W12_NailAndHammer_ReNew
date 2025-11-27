@@ -15,6 +15,11 @@ public interface ISecondaryChargedAttack
 
     /// <summary>
     /// 공격 이름 (디버그/UI용)
-    /// </summary>a
+    /// </summary>
     string GetAttackName();
+
+    /// <summary>
+    /// 스킬 타입 반환
+    /// </summary>
+    SecondaryChargedAttackType GetSkillType();
 }

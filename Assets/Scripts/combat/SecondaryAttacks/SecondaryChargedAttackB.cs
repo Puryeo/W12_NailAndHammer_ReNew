@@ -81,4 +81,9 @@ public class SecondaryChargedAttackB : ScriptableObject, ISecondaryChargedAttack
     }
 
     public string GetAttackName() => "차징공격 B";
+
+    public SecondaryChargedAttackType GetSkillType()
+    {
+        return SecondaryChargedAttackType.None;
+    }
 }
