@@ -56,8 +56,9 @@ public class PlayerCombat : MonoBehaviour
     [Tooltip("우클릭 차징공격 활성화 여부")]
     [SerializeField] private bool isSecondaryChargeShotEnabled = true;
 
-    [Tooltip("현재 장착된 우클릭 차징공격 (ScriptableObject)")]
-    [SerializeField] private ScriptableObject currentSecondaryChargedAttackSO;
+    //"현재 장착된 우클릭 차징공격 (ISecondaryChargedAttack 구현 MonoBehaviour)"
+
+    private MonoBehaviour currentSecondaryChargedAttackComponent;
 
     // 내부 상태
     private bool isSecondaryCharging = false;
@@ -87,11 +88,23 @@ public class PlayerCombat : MonoBehaviour
         // 테스트 컨트롤러 찾기 (있으면)
         testController = GetComponent<ProjectileTestController>();
 
-        // 우클릭 차징공격 초기화
-        if (currentSecondaryChargedAttackSO != null && currentSecondaryChargedAttackSO is ISecondaryChargedAttack)
+        if(currentSecondaryChargedAttackComponent == null)
         {
-            currentSecondaryChargedAttack = currentSecondaryChargedAttackSO as ISecondaryChargedAttack;
-            Debug.Log($"[Combat] 우클릭 차징공격 초기화: {currentSecondaryChargedAttack.GetAttackName()}");
+            var tempClass = GetComponent<ISecondaryChargedAttack>();
+            currentSecondaryChargedAttackComponent = tempClass as MonoBehaviour;
+        }
+        // 우클릭 차징공격 초기화
+        if (currentSecondaryChargedAttackComponent != null)
+        {
+            if (currentSecondaryChargedAttackComponent is ISecondaryChargedAttack attackComponent)
+            {
+                currentSecondaryChargedAttack = attackComponent;
+                Debug.Log($"[Combat] 우클릭 차징공격 초기화(Component): {currentSecondaryChargedAttack.GetAttackName()}");
+            }
+            else
+            {
+                Debug.LogWarning("[Combat] currentSecondaryChargedAttackComponent가 ISecondaryChargedAttack를 구현하지 않습니다.");
+            }
         }
     }
 
