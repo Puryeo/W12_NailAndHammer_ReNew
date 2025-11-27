@@ -17,7 +17,7 @@ MonoBehaviour:
   hammerSwingAngle: 180
   hammerSwingDuration: 0.4
   damage: 50
-  knockbackForce: 15
+  knockbackForce: 14.4
   executeHealAmount: 40
   hammerSwingCurve:
     serializedVersion: 2
