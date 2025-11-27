@@ -4,7 +4,7 @@ using System.Collections.Generic;
 
 /// <summary>
 /// Windmill Execution (윈드밀 처형)
-/// - 플레이어 컴포넌트로 직접 추가
+/// - 플레이어에게 직접 붙여서 사용하는 스킬 컴포넌트
 /// - 플레이어 중심으로 망치를 360도 회전시키며 휘두름
 /// - 그로기 상태 적이 있으면 처형 발동
 /// - 적 처치 시마다 1초씩 연장 (최대 6초)
@@ -61,17 +61,7 @@ public class WindmillExecution : MonoBehaviour, ISecondaryChargedAttack
     [Header("Debug")]
     [SerializeField] private bool showDebugLogs = false;
 
-    private PlayerCombat playerCombat;
-
-    private void Awake()
-    {
-        playerCombat = GetComponent<PlayerCombat>();
-        if (playerCombat == null)
-        {
-            Debug.LogError("[WindmillExecution] PlayerCombat 컴포넌트를 찾을 수 없습니다!");
-        }
-    }
-
+    // 인터페이스 구현
     public void Execute(PlayerCombat owner, Transform ownerTransform)
     {
         if (hammerPrefab == null)
@@ -93,7 +83,10 @@ public class WindmillExecution : MonoBehaviour, ISecondaryChargedAttack
         StartCoroutine(ExecuteWindmillRotation(owner, ownerTransform));
     }
 
-    public string GetAttackName() => "Windmill Execution";
+    public string GetAttackName()
+    {
+        return "Windmill Execution";
+    }
 
     /// <summary>
     /// 윈드밀 360도 회전 공격 코루틴 (Pivot 회전 방식)

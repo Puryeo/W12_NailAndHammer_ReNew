@@ -5364,7 +5364,6 @@ MonoBehaviour:
     m_RotationOrder: 4
   secondaryChargeTimeRequired: 0.6
   isSecondaryChargeShotEnabled: 1
-  currentSecondaryChargedAttackSO: {fileID: 0}
   retrieveRange: 50
   projectileLayer:
     serializedVersion: 2
@@ -5509,7 +5508,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   hammerPrefab: {fileID: 499222343195171404, guid: 460554a50deb0e84c897a8aac50ea1d6, type: 3}
-  rotationRadius: 1.5
+  rotationRadius: 1
   baseDuration: 2
   extensionPerKill: 1
   maxDuration: 6
