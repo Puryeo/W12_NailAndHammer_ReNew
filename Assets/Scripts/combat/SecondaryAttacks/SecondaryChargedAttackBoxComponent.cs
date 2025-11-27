@@ -20,7 +20,7 @@ public class SecondaryChargedAttackBoxComponent : MonoBehaviour, ISecondaryCharg
 
     [Header("Box Attack Settings")]
     [Tooltip("박스 공격 기본 가로 크기")]
-    [SerializeField] private float baseBoxWidth = 3f;
+    [SerializeField] private float baseBoxWidth = 3f; 
     [Tooltip("박스 공격 기본 세로 크기")]
     [SerializeField] private float baseBoxHeight = 2f;
     [Tooltip("박스 중심까지의 거리 (플레이어로부터)")]
