@@ -604,7 +604,7 @@ public class PlayerCombat : MonoBehaviour
             return;
         }
 
-        // 현재 준비된 스킬 확인 (핸드의 첫 번째 카드)
+        // 현재 준비된 스킬 확인 (덱[0])
         Card readyCard = deckManager.GetReadySkillCard();
 
         if (readyCard == null)
@@ -613,7 +613,7 @@ public class PlayerCombat : MonoBehaviour
             return;
         }
 
-        // 스킬 타입이 다르면 자동 장착
+        // 스킬 타입이 다르면 자동 장착 (안전장치)
         if (readyCard.skillType != currentSkillType)
         {
             if (!EquipSkill(readyCard.skillType))
@@ -637,14 +637,12 @@ public class PlayerCombat : MonoBehaviour
 
         Debug.Log($"[Combat] 처형 스킬 발동: {readyCard.cardName} ({readyCard.skillType})");
 
-        // DeckManager에 카드 사용 알림
-        bool success = deckManager.UseCard(0);
+        // DeckManager에 스킬 사용 알림
+        // - 사용한 카드는 덱 맨 뒤로 이동
+        // - 다음 스킬이 자동으로 장착됨
+        bool success = deckManager.UseSkill();
 
-        if (success)
-        {
-            Debug.Log($"[Combat] 스킬 카드 사용 완료. 다음 스킬로 교체됨.");
-        }
-        else
+        if (!success)
         {
             Debug.LogWarning($"[Combat] 스킬 카드 사용 실패!");
         }
@@ -717,27 +715,25 @@ public class PlayerCombat : MonoBehaviour
             Card readyCard = deckManager.GetReadySkillCard();
             if (readyCard != null)
             {
-                Debug.Log($"준비된 스킬 (핸드[0]): {readyCard.skillType} - {readyCard.cardName}");
+                Debug.Log($"준비된 스킬 (덱[0]): {readyCard.skillType} - {readyCard.cardName}");
             }
             else
             {
-                Debug.Log($"준비된 스킬: 없음 (핸드 비어있음)");
+                Debug.Log($"준비된 스킬: 없음");
             }
 
             Card nextCard = deckManager.GetNextSkillCard();
             if (nextCard != null)
             {
-                Debug.Log($"다음 스킬 (덱[0]): {nextCard.skillType} - {nextCard.cardName}");
+                Debug.Log($"다음 스킬 (덱[1]): {nextCard.skillType} - {nextCard.cardName}");
             }
             else
             {
-                Debug.Log($"다음 스킬: 없음 (덱 비어있음)");
+                Debug.Log($"다음 스킬: 없음");
             }
 
             Debug.Log($"\n덱 상태:");
             Debug.Log($"  덱: {deckManager.GetDeckCount()}장");
-            Debug.Log($"  핸드: {deckManager.GetHandCount()}장");
-            Debug.Log($"  버린 더미: {deckManager.GetDiscardPileCount()}장");
         }
         else
         {

@@ -6693,6 +6693,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   healthSystem: {fileID: 0}
+  deckManager: {fileID: 0}
   maxAmmo: 2
   currentAmmo: 0
   woodDamage: 10
@@ -6995,6 +6996,16 @@ MonoBehaviour:
     m_PreInfinity: 2
     m_PostInfinity: 2
     m_RotationOrder: 4
+  usePlayerSwingCurve: 0
+  enableHammerTrail: 1
+  trailTime: 0.6
+  trailStartWidth: 0.14
+  trailEndWidth: 0
+  trailColor: {r: 0.7, g: 0.2, b: 1, a: 1}
+  trailMinVertexDistance: 0.05
+  trailMaterial: {fileID: 0}
+  trailAttachPointName: 
+  trailLocalOffset: {x: 0.5, y: 0, z: 0}
 --- !u!114 &956203903
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -9909,10 +9920,26 @@ PrefabInstance:
       propertyPath: skillChoicePanel
       value: 
       objectReference: {fileID: 1565706156}
+    - target: {fileID: 182227301945727203, guid: 934c90bd34407334a87fbe99e262a057, type: 3}
+      propertyPath: allAvailableSkills.Array.data[0].skillIcon
+      value: 
+      objectReference: {fileID: 21300000, guid: f170a98945cb83346a4ef262ddcebacf, type: 3}
+    - target: {fileID: 182227301945727203, guid: 934c90bd34407334a87fbe99e262a057, type: 3}
+      propertyPath: allAvailableSkills.Array.data[1].skillIcon
+      value: 
+      objectReference: {fileID: -3298626994855174906, guid: 2852bfb7c4077be41b7edb8e27a80921, type: 3}
+    - target: {fileID: 182227301945727203, guid: 934c90bd34407334a87fbe99e262a057, type: 3}
+      propertyPath: allAvailableSkills.Array.data[2].skillIcon
+      value: 
+      objectReference: {fileID: 9198549323273911569, guid: 2d2d8db027caf6b4aa37696e5aef7909, type: 3}
     - target: {fileID: 838431765199492044, guid: 934c90bd34407334a87fbe99e262a057, type: 3}
       propertyPath: playerCombat
       value: 
       objectReference: {fileID: 956203894}
+    - target: {fileID: 838431765199492044, guid: 934c90bd34407334a87fbe99e262a057, type: 3}
+      propertyPath: randomDeckSize
+      value: 2
+      objectReference: {fileID: 0}
     - target: {fileID: 838431765199492044, guid: 934c90bd34407334a87fbe99e262a057, type: 3}
       propertyPath: emptyCardSprite
       value: 
@@ -9932,7 +9959,7 @@ PrefabInstance:
     - target: {fileID: 838431765199492044, guid: 934c90bd34407334a87fbe99e262a057, type: 3}
       propertyPath: initialDeck.Array.data[0].cardIcon
       value: 
-      objectReference: {fileID: 21300000, guid: 27dcfd68fecd101469e18048be90f46f, type: 3}
+      objectReference: {fileID: 9198549323273911569, guid: 2d2d8db027caf6b4aa37696e5aef7909, type: 3}
     - target: {fileID: 838431765199492044, guid: 934c90bd34407334a87fbe99e262a057, type: 3}
       propertyPath: initialDeck.Array.data[0].cardName
       value: "\uAC00\uB514\uC5B8"
