@@ -93,6 +93,11 @@ public class GuardianSkillController : MonoBehaviour, ISecondaryChargedAttack
 
     public string GetAttackName() => "보라색 수호신(컴포넌트)";
 
+    public SecondaryChargedAttackType GetSkillType()
+    {
+        return SecondaryChargedAttackType.Guardian;
+    }
+
     private IEnumerator SkillSequence(PlayerCombat owner, Transform ownerTransform)
     {
         isSkillActive = true;

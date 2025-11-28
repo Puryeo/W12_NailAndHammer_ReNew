@@ -88,6 +88,11 @@ public class WindmillExecution : MonoBehaviour, ISecondaryChargedAttack
         return "Windmill Execution";
     }
 
+    public SecondaryChargedAttackType GetSkillType()
+    {
+        return SecondaryChargedAttackType.Windmill;
+    }
+
     /// <summary>
     /// 윈드밀 360도 회전 공격 코루틴 (Pivot 회전 방식)
     /// </summary>

@@ -15,7 +15,8 @@
       "Bash(where /r %USERPROFILE% unity-cs-helper.md)",
       "Bash(findstr:*)",
       "Bash(powershell -Command:*)",
-      "Skill(unity-cs-helper)"
+      "Skill(unity-cs-helper)",
+      "Bash(if not exist \"Assets\\Scripts\\Deck\" mkdir \"Assets\\Scripts\\Deck\")"
     ],
     "deny": [],
     "ask": []

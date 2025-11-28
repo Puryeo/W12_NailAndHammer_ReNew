@@ -180,6 +180,11 @@ public class SecondaryChargedAttackBoxComponent : MonoBehaviour, ISecondaryCharg
 
     public string GetAttackName() => $"차징공격 박스 (단계: {currentStage})";
 
+    public SecondaryChargedAttackType GetSkillType()
+    {
+        return SecondaryChargedAttackType.None;
+    }
+
     private Vector2 GetMouseDirection(Transform ownerTransform)
     {
         Vector3 mouseWorld = Vector3.zero;

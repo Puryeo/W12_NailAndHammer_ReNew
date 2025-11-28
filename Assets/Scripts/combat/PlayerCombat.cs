@@ -65,6 +65,14 @@ public class PlayerCombat : MonoBehaviour
     private float secondaryChargeTimer = 0f;
     private ISecondaryChargedAttack currentSecondaryChargedAttack;
 
+    // 스킬 관리 시스템
+    private Dictionary<SecondaryChargedAttackType, ISecondaryChargedAttack> skillDictionary;
+    private SecondaryChargedAttackType currentSkillType = SecondaryChargedAttackType.None;
+
+    [Header("Skill Test Mode")]
+    [Tooltip("테스트 모드 활성화 (1,2,3,4 키로 스킬 교체)")]
+    [SerializeField] private bool enableSkillTestMode = false;
+
     [Header("Skill: Chain Retrieve")]
     [SerializeField] private float retrieveRange = 10f; // 회수 가능 거리
     [SerializeField] private LayerMask projectileLayer; // 투사체 레이어
@@ -88,6 +96,10 @@ public class PlayerCombat : MonoBehaviour
         // 테스트 컨트롤러 찾기 (있으면)
         testController = GetComponent<ProjectileTestController>();
 
+        // 스킬 Dictionary 초기화
+        InitializeSkillDictionary();
+
+        // 기존 방식 호환 (currentSecondaryChargedAttackComponent)
         if(currentSecondaryChargedAttackComponent == null)
         {
             var tempClass = GetComponent<ISecondaryChargedAttack>();
@@ -99,12 +111,79 @@ public class PlayerCombat : MonoBehaviour
             if (currentSecondaryChargedAttackComponent is ISecondaryChargedAttack attackComponent)
             {
                 currentSecondaryChargedAttack = attackComponent;
-                Debug.Log($"[Combat] 우클릭 차징공격 초기화(Component): {currentSecondaryChargedAttack.GetAttackName()}");
+                currentSkillType = attackComponent.GetSkillType();
+                Debug.Log($"[Combat] 우클릭 차징공격 초기화(Component): {currentSecondaryChargedAttack.GetAttackName()}, Type: {currentSkillType}");
             }
             else
             {
                 Debug.LogWarning("[Combat] currentSecondaryChargedAttackComponent가 ISecondaryChargedAttack를 구현하지 않습니다.");
             }
+        }
+        else
+        {
+            // currentSecondaryChargedAttackComponent가 없으면 Dictionary에서 첫 번째 None이 아닌 스킬 장착
+            EquipFirstAvailableSkill();
+        }
+    }
+
+    /// <summary>
+    /// 모든 ISecondaryChargedAttack 컴포넌트를 수집하여 Dictionary에 등록
+    /// </summary>
+    private void InitializeSkillDictionary()
+    {
+        skillDictionary = new Dictionary<SecondaryChargedAttackType, ISecondaryChargedAttack>();
+
+        // 이 게임오브젝트에 붙어있는 모든 ISecondaryChargedAttack 구현체를 찾음
+        MonoBehaviour[] components = GetComponents<MonoBehaviour>();
+
+        foreach (var comp in components)
+        {
+            if (comp is ISecondaryChargedAttack skill)
+            {
+                SecondaryChargedAttackType skillType = skill.GetSkillType();
+
+                // 이미 등록된 타입이면 경고
+                if (skillDictionary.ContainsKey(skillType))
+                {
+                    Debug.LogWarning($"[Combat] 중복된 스킬 타입 발견: {skillType}. 기존 스킬을 유지합니다.");
+                    continue;
+                }
+
+                skillDictionary[skillType] = skill;
+                Debug.Log($"[Combat] 스킬 등록: {skillType} - {skill.GetAttackName()}");
+            }
+        }
+
+        Debug.Log($"[Combat] 총 {skillDictionary.Count}개의 스킬이 등록되었습니다.");
+    }
+
+    /// <summary>
+    /// Dictionary에서 첫 번째 None이 아닌 스킬을 장착
+    /// </summary>
+    private void EquipFirstAvailableSkill()
+    {
+        if (skillDictionary == null || skillDictionary.Count == 0)
+        {
+            Debug.LogWarning("[Combat] 사용 가능한 스킬이 없습니다.");
+            return;
+        }
+
+        // None이 아닌 첫 번째 스킬을 찾아서 장착
+        foreach (var kvp in skillDictionary)
+        {
+            if (kvp.Key != SecondaryChargedAttackType.None)
+            {
+                EquipSkill(kvp.Key);
+                Debug.Log($"[Combat] 기본 스킬 자동 장착: {kvp.Key}");
+                return;
+            }
+        }
+
+        // None만 있는 경우
+        if (skillDictionary.ContainsKey(SecondaryChargedAttackType.None))
+        {
+            EquipSkill(SecondaryChargedAttackType.None);
+            Debug.Log("[Combat] None 스킬 장착");
         }
     }
 
@@ -124,6 +203,47 @@ public class PlayerCombat : MonoBehaviour
         if (isSecondaryCharging)
         {
             secondaryChargeTimer += Time.deltaTime;
+        }
+
+        // 테스트 모드: 1,2,3,4 키로 스킬 교체
+        if (enableSkillTestMode)
+        {
+            HandleSkillTestInput();
+        }
+    }
+
+    /// <summary>
+    /// 테스트 모드 키 입력 처리 (1,2,3,4 키로 스킬 교체)
+    /// </summary>
+    private void HandleSkillTestInput()
+    {
+        if (Input.GetKeyDown(KeyCode.Alpha5))
+        {
+            if (EquipSkill(SecondaryChargedAttackType.Windmill))
+            {
+                Debug.Log($"[TEST] 스킬 교체: Windmill (윈드밀)");
+            }
+        }
+        else if (Input.GetKeyDown(KeyCode.Alpha6))
+        {
+            if (EquipSkill(SecondaryChargedAttackType.Thorns))
+            {
+                Debug.Log($"[TEST] 스킬 교체: Thorns (가시소환)");
+            }
+        }
+        else if (Input.GetKeyDown(KeyCode.Alpha7))
+        {
+            if (EquipSkill(SecondaryChargedAttackType.Guardian))
+            {
+                Debug.Log($"[TEST] 스킬 교체: Guardian (가디언)");
+            }
+        }
+        else if (Input.GetKeyDown(KeyCode.Alpha8))
+        {
+            if (EquipSkill(SecondaryChargedAttackType.Sector))
+            {
+                Debug.Log($"[TEST] 스킬 교체: Sector (부채꼴)");
+            }
         }
     }
 
@@ -549,4 +669,61 @@ public class PlayerCombat : MonoBehaviour
     public float GetSecondaryChargeProgress() => secondaryChargeTimeRequired > 0f ? Mathf.Clamp01(secondaryChargeTimer / secondaryChargeTimeRequired) : 1f;
     public bool IsSecondaryCharging() => isSecondaryCharging;
     public bool IsSecondaryChargeReady() => isSecondaryCharging && secondaryChargeTimer >= secondaryChargeTimeRequired;
+
+    // ==================== 스킬 관리 시스템 ====================
+
+    /// <summary>
+    /// 스킬 장착 (enum 타입으로 스킬 변경)
+    /// </summary>
+    /// <param name="skillType">장착할 스킬 타입</param>
+    /// <returns>장착 성공 여부</returns>
+    public bool EquipSkill(SecondaryChargedAttackType skillType)
+    {
+        if (skillDictionary == null)
+        {
+            Debug.LogWarning("[Combat] skillDictionary가 초기화되지 않았습니다.");
+            return false;
+        }
+
+        if (!skillDictionary.ContainsKey(skillType))
+        {
+            Debug.LogWarning($"[Combat] 스킬 타입 '{skillType}'을(를) 보유하고 있지 않습니다.");
+            return false;
+        }
+
+        // 상태패턴: 레퍼런스 캐싱
+        currentSecondaryChargedAttack = skillDictionary[skillType];
+        currentSkillType = skillType;
+
+        Debug.Log($"[Combat] 스킬 장착: {skillType} - {currentSecondaryChargedAttack.GetAttackName()}");
+        return true;
+    }
+
+    /// <summary>
+    /// 현재 장착된 스킬 타입 반환
+    /// </summary>
+    public SecondaryChargedAttackType GetCurrentSkillType()
+    {
+        return currentSkillType;
+    }
+
+    /// <summary>
+    /// 특정 스킬을 보유하고 있는지 확인
+    /// </summary>
+    public bool HasSkill(SecondaryChargedAttackType skillType)
+    {
+        return skillDictionary != null && skillDictionary.ContainsKey(skillType);
+    }
+
+    /// <summary>
+    /// 현재 장착된 스킬 이름 반환 (디버그/UI용)
+    /// </summary>
+    public string GetCurrentSkillName()
+    {
+        if (currentSecondaryChargedAttack != null)
+        {
+            return currentSecondaryChargedAttack.GetAttackName();
+        }
+        return "없음";
+    }
 }

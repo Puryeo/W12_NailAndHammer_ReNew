@@ -3,20 +3,25 @@ using UnityEngine;
 [CreateAssetMenu(fileName = "SpinExecutionAttack", menuName = "Skills/Secondary Charged Attack/Spin Execution")]
 public class SpinExecutionAttackSO : ScriptableObject, ISecondaryChargedAttack
 {
-    [Header("½ºÅ³ ±âº» ¼³Á¤")]
+    [Header("ï¿½ï¿½Å³ ï¿½âº» ï¿½ï¿½ï¿½ï¿½")]
     [SerializeField] private float duration = 3f;
     [SerializeField] private float rotationsPerSecond = 3f;
 
-    [Header("¸ÁÄ¡ ¼³Á¤")]
+    [Header("ï¿½ï¿½Ä¡ ï¿½ï¿½ï¿½ï¿½")]
     [SerializeField] private GameObject hammerPrefab;
     [SerializeField] private float hammerDistance = 1.2f;
 
-    [Header("µ¥¹ÌÁö ¼³Á¤")]
+    [Header("ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½")]
     [SerializeField] private float normalDamage = 50f;
     [SerializeField] private float executeHealAmount = 30f;
     [SerializeField] private int executeAmmoReward = 2;
 
-    public string GetAttackName() => "ÆØÀÌ Ã³Çü";
+    public string GetAttackName() => "ï¿½ï¿½ï¿½ï¿½ Ã³ï¿½ï¿½";
+
+    public SecondaryChargedAttackType GetSkillType()
+    {
+        return SecondaryChargedAttackType.None;
+    }
 
     public void Execute(PlayerCombat owner, Transform ownerTransform)
     {
