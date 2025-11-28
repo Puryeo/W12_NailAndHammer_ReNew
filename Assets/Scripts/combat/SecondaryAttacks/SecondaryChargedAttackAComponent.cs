@@ -59,6 +59,11 @@ public class SecondaryChargedAttackAComponent : MonoBehaviour, ISecondaryCharged
 
     public string GetAttackName() => "차징공격 A (컴포넌트)";
 
+    public SecondaryChargedAttackType GetSkillType()
+    {
+        return SecondaryChargedAttackType.None;
+    }
+
     private void IgnorePlayerHammerCollision(Transform ownerTransform, GameObject hammer)
     {
         Collider2D hammerCol = hammer.GetComponent<Collider2D>();

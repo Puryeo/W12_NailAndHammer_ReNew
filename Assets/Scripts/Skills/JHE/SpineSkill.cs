@@ -83,4 +83,9 @@ public class SpineSkill : MonoBehaviour, ISecondaryChargedAttack
     {
         return "Spine Smash Skill";
     }
+
+    public SecondaryChargedAttackType GetSkillType()
+    {
+        return SecondaryChargedAttackType.Thorns;
+    }
 }

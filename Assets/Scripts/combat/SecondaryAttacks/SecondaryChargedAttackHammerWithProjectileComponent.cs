@@ -89,6 +89,11 @@ public class SecondaryChargedAttackHammerWithProjectileComponent : MonoBehaviour
 
     public string GetAttackName() => "차징공격 망치+투사체 (컴포넌트)";
 
+    public SecondaryChargedAttackType GetSkillType()
+    {
+        return SecondaryChargedAttackType.None;
+    }
+
     /// <summary>
     /// 적 처형 시 호출되는 콜백
     /// </summary>
