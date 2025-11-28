@@ -83,6 +83,9 @@ public class SkillChoiceButton : MonoBehaviour
             return;
         }
 
+        // 일시정지 풀기
+        Time.timeScale = 1f;
+
         // 스킬 선택을 매니저에 전달
         choiceManager.OnSkillSelected(currentSkillData);
 
