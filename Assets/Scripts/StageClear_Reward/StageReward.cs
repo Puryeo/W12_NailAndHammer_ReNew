@@ -79,6 +79,9 @@ public class StageReward : MonoBehaviour
             // 보상 패널 활성화
             if (rewardPanel != null)
             {
+                // 일시정지
+                Time.timeScale = 0f;
+
                 rewardPanel.SetActive(true);
                 isPanelActive = true;
 
