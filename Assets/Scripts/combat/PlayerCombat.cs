@@ -1,4 +1,4 @@
-﻿using UnityEngine;
+using UnityEngine;
 using System.Collections.Generic;
 
 /// <summary>
@@ -50,19 +50,17 @@ public class PlayerCombat : MonoBehaviour
     [SerializeField] private AnimationCurve hammerSwingCurve = AnimationCurve.EaseInOut(0f, 0f, 1f, 1f);
 
     [Header("우클릭 공격 (Secondary)")]
-    [Tooltip("우클릭 차징 시간 (초)")]
-    [SerializeField] private float secondaryChargeTimeRequired = 1.0f;
-
-    [Tooltip("우클릭 차징공격 활성화 여부")]
+    [Tooltip("우클릭 처형 공격 활성화 여부")]
     [SerializeField] private bool isSecondaryChargeShotEnabled = true;
-
-    //"현재 장착된 우클릭 차징공격 (ISecondaryChargedAttack 구현 MonoBehaviour)"
+    [Header("Execution Settings")]
+    [Tooltip("처형 감지 반경")]
+    [SerializeField] private float executionRange = 3.5f;
+    [Tooltip("처형 감지 각도 (부채꼴 전체 각도)")]
+    [SerializeField] private float executionAngle = 245f;
+    [Tooltip("감지할 적 레이어")]
+    [SerializeField] private LayerMask enemyLayer;
 
     private MonoBehaviour currentSecondaryChargedAttackComponent;
-
-    // 내부 상태
-    private bool isSecondaryCharging = false;
-    private float secondaryChargeTimer = 0f;
     private ISecondaryChargedAttack currentSecondaryChargedAttack;
 
     // 스킬 관리 시스템
@@ -199,13 +197,7 @@ public class PlayerCombat : MonoBehaviour
             chargeTimer += Time.deltaTime;
         }
 
-        // 우클릭 차지 진행
-        if (isSecondaryCharging)
-        {
-            secondaryChargeTimer += Time.deltaTime;
-        }
-
-        // 테스트 모드: 1,2,3,4 키로 스킬 교체
+        // 테스트 모드: 5,6,7,8 키로 스킬 교체
         if (enableSkillTestMode)
         {
             HandleSkillTestInput();
@@ -605,36 +597,65 @@ public class PlayerCombat : MonoBehaviour
     // ==================== 우클릭 공격 시스템 ====================
 
     /// <summary>
-    /// 우클릭 누름 - 차징 시작
+    /// 우클릭 누름 - 그로기 검증 시작
     /// </summary>
     public void OnSecondaryDown()
     {
         if (hammerTimer > 0) return; // 망치 쿨타임 체크
-        isSecondaryCharging = true;
-        secondaryChargeTimer = 0f;
-    }
+        /*        isSecondaryCharging = true;
+                secondaryChargeTimer = 0f;*/
 
-    /// <summary>
-    /// 우클릭 뗌 - 망치(처형 X) or 차징공격(처형 O)
-    /// </summary>
-    public void OnSecondaryUp()
-    {
-        if (!isSecondaryCharging) return;
-        isSecondaryCharging = false;
+        Collider2D targetEnemy = CheckForExecutionTarget();
 
-        // 차징 시간 충족 여부에 따라 분기
-        if (isSecondaryChargeShotEnabled && secondaryChargeTimer >= secondaryChargeTimeRequired)
+        if (targetEnemy != null)
         {
             TryFireSecondaryChargedAttack();
+            Debug.Log($"[Combat] 처형 대상 발견: {targetEnemy.name}");
         }
         else
         {
-            TrySwingHammer(enableExecution: false); // 기본 망치 (처형 X)
+            TrySwingHammer(enableExecution: false);
+            Debug.Log("[Combat] 처형 대상 없음 - 기본 망치 공격 실행");
         }
     }
 
+    private Collider2D CheckForExecutionTarget()
+    {
+        Collider2D[] hits = Physics2D.OverlapCircleAll(transform.position, executionRange, enemyLayer);
+
+        Collider2D closestEnemy = null;
+        float closestDist = float.MaxValue;
+
+        // 현재 마우스 방향
+        Vector2 aimDir = GetAimDirection();
+
+        foreach(var hit in hits)
+        {
+            // 타겟 방향 벡터
+            Vector2 targetDir = (hit.transform.position - transform.position).normalized;
+            // 각도 계산
+            float angleToTarget = Vector2.Angle(aimDir, targetDir);
+
+            if (angleToTarget <= executionAngle / 2f)
+            {
+                // 그로기 상태인지 확인
+                var enemyCtrl = hit.GetComponent<EnemyController>() ?? hit.GetComponentInParent<EnemyController>();
+                if (enemyCtrl != null && enemyCtrl.IsGroggy())
+                {
+                    float dist = Vector2.Distance(transform.position, hit.transform.position);
+                    if (dist < closestDist)
+                    {
+                        closestDist = dist;
+                        closestEnemy = hit;
+                    }
+                }
+            }
+        }
+        return closestEnemy;
+    }
+
     /// <summary>
-    /// 우클릭 차징공격 실행 (전략패턴)
+    /// 우클릭 처형 공격 실행 (전략패턴)
     /// </summary>
     private void TryFireSecondaryChargedAttack()
     {
@@ -642,7 +663,7 @@ public class PlayerCombat : MonoBehaviour
 
         if (currentSecondaryChargedAttack == null)
         {
-            Debug.LogWarning("현재 장착된 우클릭 차징공격이 없습니다.");
+            Debug.LogWarning("현재 장착된 우클릭 처형 공격 없습니다.");
             return;
         }
 
@@ -651,24 +672,17 @@ public class PlayerCombat : MonoBehaviour
         // 전략패턴 Execute 호출
         currentSecondaryChargedAttack.Execute(this, transform);
 
-        Debug.Log($"[Combat] 우클릭 차징공격 발사! ({currentSecondaryChargedAttack.GetAttackName()})");
+        Debug.Log($"[Combat] 우클릭 처형 공격 발사! ({currentSecondaryChargedAttack.GetAttackName()})");
     }
 
     /// <summary>
-    /// 우클릭 차징공격 교체 (외부 업그레이드 시스템에서 호출)
+    /// 우클릭 처형 공격 교체 (외부 업그레이드 시스템에서 호출)
     /// </summary>
     public void SetSecondaryChargedAttack(ISecondaryChargedAttack attack)
     {
         currentSecondaryChargedAttack = attack;
-        Debug.Log($"[Combat] 우클릭 차징공격 교체: {attack?.GetAttackName()}");
+        Debug.Log($"[Combat] 우클릭 처형 공격 교체: {attack?.GetAttackName()}");
     }
-
-    /// <summary>
-    /// 우클릭 차징공격 상태 조회 (UI용)
-    /// </summary>
-    public float GetSecondaryChargeProgress() => secondaryChargeTimeRequired > 0f ? Mathf.Clamp01(secondaryChargeTimer / secondaryChargeTimeRequired) : 1f;
-    public bool IsSecondaryCharging() => isSecondaryCharging;
-    public bool IsSecondaryChargeReady() => isSecondaryCharging && secondaryChargeTimer >= secondaryChargeTimeRequired;
 
     // ==================== 스킬 관리 시스템 ====================
 
@@ -725,5 +739,23 @@ public class PlayerCombat : MonoBehaviour
             return currentSecondaryChargedAttack.GetAttackName();
         }
         return "없음";
+    }
+
+    /// <summary>
+    /// 에디터에서 감지 범위 시각화 (디버깅용)
+    /// </summary>
+    private void OnDrawGizmosSelected()
+    {
+        Gizmos.color = Color.red;
+        // 원 그리기
+        Gizmos.DrawWireSphere(transform.position, executionRange);
+
+        // 부채꼴 라인 그리기 (현재 바라보는 방향 기준이 아니므로 대략적인 확인용)
+        Vector3 rightDir = Quaternion.Euler(0, 0, executionAngle * 0.5f) * Vector3.right;
+        Vector3 leftDir = Quaternion.Euler(0, 0, -executionAngle * 0.5f) * Vector3.right;
+
+        Gizmos.color = new Color(1, 0, 0, 0.3f);
+        Gizmos.DrawRay(transform.position, rightDir * executionRange);
+        Gizmos.DrawRay(transform.position, leftDir * executionRange);
     }
 }

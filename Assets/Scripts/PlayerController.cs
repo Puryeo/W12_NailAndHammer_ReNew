@@ -130,6 +130,7 @@ public class PlayerController : MonoBehaviour
         {
             if (playerCombat != null) playerCombat.OnPrimaryDown();
         }
+
         if (Input.GetMouseButtonUp(0))
         {
             if (playerCombat != null) playerCombat.OnPrimaryUp();
@@ -142,16 +143,16 @@ public class PlayerController : MonoBehaviour
         }
 
         // --- 우클릭 ---
-        // 우클릭 누름: 차징 시작
         if (Input.GetMouseButtonDown(1))
         {
             if (playerCombat != null) playerCombat.OnSecondaryDown();
         }
+
         // 우클릭 뗌: 망치(처형X) or 차징공격(처형O)
-        if (Input.GetMouseButtonUp(1))
+/*        if (Input.GetMouseButtonUp(1))
         {
             if (playerCombat != null) playerCombat.OnSecondaryUp();
-        }
+        }*/
 
         // R키: 사슬 회수
         if (Input.GetKeyDown(KeyCode.R))
