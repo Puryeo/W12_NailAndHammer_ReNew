@@ -1886,7 +1886,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 259cf726d6182ae47bf0bba9330730b0, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  retrieval: {fileID: 956203899}
+  retrieval: {fileID: 0}
   coolDownBar: {fileID: 257059010}
   timeText: {fileID: 245348127}
   lerpSpeed: 10
@@ -4563,7 +4563,7 @@ MonoBehaviour:
   m_OnClick:
     m_PersistentCalls:
       m_Calls:
-      - m_Target: {fileID: 956203898}
+      - m_Target: {fileID: 0}
         m_TargetAssemblyTypeName: ProjectileTestController, Assembly-CSharp
         m_MethodName: SetMode2
         m_Mode: 1
@@ -6540,9 +6540,6 @@ GameObject:
   - component: {fileID: 956203895}
   - component: {fileID: 956203894}
   - component: {fileID: 956203893}
-  - component: {fileID: 956203897}
-  - component: {fileID: 956203899}
-  - component: {fileID: 956203898}
   - component: {fileID: 956203903}
   - component: {fileID: 956203902}
   - component: {fileID: 956203901}
@@ -6818,65 +6815,6 @@ BoxCollider2D:
   m_AutoTiling: 0
   m_Size: {x: 1, y: 1}
   m_EdgeRadius: 0
---- !u!114 &956203897
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 956203889}
-  m_Enabled: 0
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: c74dbdd46c356e548898a4f6eb220e39, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  pullDistance: 0.6
-  hitStopSeconds: 0.1
-  moveToPlayerDuration: 0.5
-  spawnInterval: 0.04
-  linePrefab: {fileID: 0}
-  endDecoratorPrefab: {fileID: 7605652443464400351, guid: 0be868df73bcc4947b9ca78b09828a32, type: 3}
-  hitStop: 2
-  shake: 2
-  retrievalCooldown: 15
-  showDebugLogs: 1
-  enemyVisualPullAmount: 0.8
-  enemyVisualDuration: 0.6
---- !u!114 &956203898
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 956203889}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: a1932cdfc7ae4024d9ee08653282feab, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  config1_Basic: {fileID: 11400000, guid: a571bfbd4a1376445996c01ea433f6ce, type: 2}
-  config2_Pull: {fileID: 11400000, guid: 910ff02f410f8064b8baa89adf76fe4b, type: 2}
-  config3_ImpaleBinding: {fileID: 11400000, guid: a286f80080efdd44480e2b78076cf4e2, type: 2}
-  showDebugUI: 0
-  showDebugLogs: 1
-  resumeTimeOnModeSelect: 1
-  modePanel: {fileID: 0}
---- !u!114 &956203899
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 956203889}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 009c27cc780de8e41bc865f0e0d8c2bc, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  retrievalKey: 114
-  cooldown: 5
-  showDebugLogs: 0
-  showDebugUI: 0
 --- !u!114 &956203900
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -12281,7 +12219,7 @@ MonoBehaviour:
   m_OnClick:
     m_PersistentCalls:
       m_Calls:
-      - m_Target: {fileID: 956203898}
+      - m_Target: {fileID: 0}
         m_TargetAssemblyTypeName: ProjectileTestController, Assembly-CSharp
         m_MethodName: SetMode3
         m_Mode: 1
