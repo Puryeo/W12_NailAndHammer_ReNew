@@ -237,6 +237,13 @@ public class PlayerCombat : MonoBehaviour
                 Debug.Log($"[TEST] 스킬 교체: Sector (부채꼴)");
             }
         }
+        else if (Input.GetKeyDown(KeyCode.Alpha9))
+        {
+            if (EquipSkill(SecondaryChargedAttackType.Splash))
+            {
+                Debug.Log($"[TEST] 스킬 교체: Splash");
+            }
+        }
     }
 
     // 입력 연동 API (PlayerController가 호출)
