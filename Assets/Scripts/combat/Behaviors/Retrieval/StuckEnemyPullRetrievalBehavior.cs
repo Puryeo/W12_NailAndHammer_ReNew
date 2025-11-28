@@ -64,6 +64,7 @@ public class StuckEnemyPullRetrievalBehavior : IProjectileRetrievalBehavior
         Collider2D enemyCollider = null;
         Rigidbody2D enemyRb = null;
         RigidbodyType2D originalBodyType = RigidbodyType2D.Dynamic;
+        bool originalIsTrigger = false;
         Vector3 enemyOriginalScale = Vector3.one;
         Quaternion enemyOriginalRotation = Quaternion.identity;
         Transform enemyOriginalParent = null;
@@ -95,11 +96,12 @@ public class StuckEnemyPullRetrievalBehavior : IProjectileRetrievalBehavior
                     Debug.Log($"StuckEnemyPullRetrievalBehavior: 기존 PullEffect 제거");
             }
 
-            // 몬스터 콜라이더 비활성화 (중복 충돌 방지)
+            // 몬스터 콜라이더를 Trigger로 변경 (물리 충돌 방지, 감지는 가능)
             enemyCollider = stuckEnemy.GetComponent<Collider2D>();
             if (enemyCollider != null)
             {
-                enemyCollider.enabled = false;
+                originalIsTrigger = enemyCollider.isTrigger;
+                enemyCollider.isTrigger = true;
             }
 
             // 몬스터 Rigidbody를 Kinematic으로 변경 (물리 간섭 방지)
@@ -203,7 +205,7 @@ public class StuckEnemyPullRetrievalBehavior : IProjectileRetrievalBehavior
                 if (showDebugLogs)
                     Debug.Log($"StuckEnemyPullRetrievalBehavior: 분리 거리 도달 ({distance:F2} <= {config.pullDetachDistance}) - 몬스터 분리");
 
-                DetachEnemy(stuckEnemy, enemyCollider, enemyRb, originalBodyType, enemyOriginalScale, enemyOriginalRotation, enemyOriginalParent);
+                DetachEnemy(stuckEnemy, enemyCollider, enemyRb, originalBodyType, originalIsTrigger, enemyOriginalScale, enemyOriginalRotation, enemyOriginalParent);
                 isEnemyAttached = false;
             }
             else if (showDebugLogs && isEnemyAttached && elapsed % 0.2f < Time.deltaTime)
@@ -225,7 +227,7 @@ public class StuckEnemyPullRetrievalBehavior : IProjectileRetrievalBehavior
                     health.TakeDamage(config.pullWallImpactDamage);
                 }
 
-                DetachEnemy(stuckEnemy, enemyCollider, enemyRb, originalBodyType, enemyOriginalScale, enemyOriginalRotation, enemyOriginalParent);
+                DetachEnemy(stuckEnemy, enemyCollider, enemyRb, originalBodyType, originalIsTrigger, enemyOriginalScale, enemyOriginalRotation, enemyOriginalParent);
                 isEnemyAttached = false;
             }
 
@@ -241,7 +243,7 @@ public class StuckEnemyPullRetrievalBehavior : IProjectileRetrievalBehavior
                     if (showDebugLogs)
                         Debug.Log($"StuckEnemyPullRetrievalBehavior: 플레이어 도착 - 몬스터 강제 분리");
 
-                    DetachEnemy(stuckEnemy, enemyCollider, enemyRb, originalBodyType, enemyOriginalScale, enemyOriginalRotation, enemyOriginalParent);
+                    DetachEnemy(stuckEnemy, enemyCollider, enemyRb, originalBodyType, originalIsTrigger, enemyOriginalScale, enemyOriginalRotation, enemyOriginalParent);
                     isEnemyAttached = false;
                 }
 
@@ -257,7 +259,7 @@ public class StuckEnemyPullRetrievalBehavior : IProjectileRetrievalBehavior
             if (showDebugLogs)
                 Debug.Log($"StuckEnemyPullRetrievalBehavior: 타임아웃 ({elapsed:F2}s >= {moveDuration}s) - 몬스터 분리");
 
-            DetachEnemy(stuckEnemy, enemyCollider, enemyRb, originalBodyType, enemyOriginalScale, enemyOriginalRotation, enemyOriginalParent);
+            DetachEnemy(stuckEnemy, enemyCollider, enemyRb, originalBodyType, originalIsTrigger, enemyOriginalScale, enemyOriginalRotation, enemyOriginalParent);
         }
 
         // ===== 6. 정리 =====
@@ -273,7 +275,7 @@ public class StuckEnemyPullRetrievalBehavior : IProjectileRetrievalBehavior
     /// 몬스터를 투사체에서 분리하고 원래 상태로 복원합니다.
     /// </summary>
     private void DetachEnemy(EnemyController enemy, Collider2D enemyCollider, Rigidbody2D enemyRb,
-                             RigidbodyType2D originalBodyType, Vector3 originalScale, Quaternion originalRotation, Transform originalParent)
+                             RigidbodyType2D originalBodyType, bool originalIsTrigger, Vector3 originalScale, Quaternion originalRotation, Transform originalParent)
     {
         Debug.Log($"DetachEnemy 호출됨: enemy={enemy?.name ?? "null"}, enemyRb={enemyRb != null}, originalBodyType={originalBodyType}");
         
@@ -315,17 +317,18 @@ public class StuckEnemyPullRetrievalBehavior : IProjectileRetrievalBehavior
         if (showDebugLogs)
             Debug.Log($"DetachEnemy: Transform 값 복원 완료");
 
-        // 콜라이더 다시 활성화
+        // 콜라이더 원래대로 복원
         if (showDebugLogs)
-            Debug.Log($"DetachEnemy: 콜라이더 활성화 시작 (enemyCollider={enemyCollider != null})");
-        
+            Debug.Log($"DetachEnemy: 콜라이더 복원 시작 (enemyCollider={enemyCollider != null})");
+
         if (enemyCollider != null)
         {
             enemyCollider.enabled = true;
+            enemyCollider.isTrigger = originalIsTrigger;
         }
-        
+
         if (showDebugLogs)
-            Debug.Log($"DetachEnemy: 콜라이더 활성화 완료");
+            Debug.Log($"DetachEnemy: 콜라이더 복원 완료");
 
         // Rigidbody 복원
         Debug.Log($"DetachEnemy [{enemy.name}]: Rigidbody 체크 시작 (enemyRb={enemyRb != null})");
