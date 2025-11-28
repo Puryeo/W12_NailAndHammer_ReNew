@@ -28,9 +28,7 @@ public class SpineHammerController : MonoBehaviour
     private float hitRadius;
 
     // 가시 스킬 데이터
-    private GameObject spinePrefab;
-    private int spineCount;
-    private float spineRadius;
+    private GameObject spineWavePrefab;
 
     private float targetZAngle;
     private bool isSwinging = false;
@@ -45,9 +43,7 @@ public class SpineHammerController : MonoBehaviour
         this.swingDuration = Mathf.Max(0.01f, swingDuration);
         this.hitRadius = hitRadius;
 
-        this.spinePrefab = spinePrefab;
-        this.spineCount = spineCount;
-        this.spineRadius = spineRadius;
+        this.spineWavePrefab = spinePrefab;
         this.targetZAngle = targetAngle;
 
         StartCoroutine(SwingRoutine());
@@ -139,7 +135,8 @@ public class SpineHammerController : MonoBehaviour
 
         // 가시 소환
         enemy.ApplyImpale(3.0f); // 속박
-        SpawnSpines(hitPos);     // 가시 생성
+
+        SpawnSpineWave(hitPos);
 
         // 처형 이펙트 및 사망 처리
         var enemyHealth = enemy.GetComponent<HealthSystem>();
@@ -190,20 +187,24 @@ public class SpineHammerController : MonoBehaviour
         Debug.Log($"[SpineHammer] {enemy.name} 일반 타격 (가시 미발동)");
     }
 
-    private void SpawnSpines(Vector3 centerPos)
+    private void SpawnSpineWave(Vector3 spawnPos)
     {
-        if (spinePrefab == null) return;
+        if (spineWavePrefab == null) return;
 
-        // 중앙 가시
-        Instantiate(spinePrefab, centerPos, Quaternion.identity);
+        GameObject waveObj = Instantiate(spineWavePrefab, spawnPos, Quaternion.identity);
+        bool isLookingLeft = Mathf.Abs(targetZAngle) > 90f;
 
-        // 주변 가시
-        for (int i = 0; i < spineCount; i++)
+        if (isLookingLeft)
         {
-            float angle = i * (360f / spineCount);
-            Vector3 dir = Quaternion.Euler(0, 0, angle) * Vector3.right;
-            Vector3 spawnPos = centerPos + dir * spineRadius;
-            Instantiate(spinePrefab, spawnPos, Quaternion.identity);
+            Vector3 scale = waveObj.transform.localScale;
+            scale.x = -Mathf.Abs(scale.x);
+            waveObj.transform.localScale = scale;
+        }
+        else
+        {
+            Vector3 scale = waveObj.transform.localScale;
+            scale.x = Mathf.Abs(scale.x);
+            waveObj.transform.localScale = scale;
         }
     }
 

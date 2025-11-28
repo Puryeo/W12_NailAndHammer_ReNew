@@ -50,6 +50,7 @@ public class CameraShake : MonoBehaviour
     public void ShakeWeak() => Shake(weakMagnitude, weakDuration, weakCurve);
     public void ShakeMedium() => Shake(mediumMagnitude, mediumDuration, mediumCurve);
     public void ShakeStrong() => Shake(strongMagnitude, strongDuration, strongCurve);
+    public void ShakeCustom(float magnitude) => Shake(magnitude, mediumDuration, mediumCurve);
 
     /// <summary>
     /// 기본 Shake 호출 (커브 선택적)
