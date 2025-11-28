@@ -12,5 +12,6 @@ public enum SecondaryChargedAttackType
     Windmill,
     Thorns,
     Guardian,
-    Sector
+    Sector,
+    Splash
 }
