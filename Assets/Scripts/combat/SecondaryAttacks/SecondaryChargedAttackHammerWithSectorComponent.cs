@@ -68,8 +68,10 @@ public class SecondaryChargedAttackHammerWithSectorComponent : MonoBehaviour, IS
     [SerializeField] private AnimationCurve shockwaveExpandCurve = AnimationCurve.EaseInOut(0f, 0f, 1f, 1f);
 
     [Header("Pixel Particle Effect")]
-    [Tooltip("픽셀 파티클 개수")]
+    [Tooltip("둘레 픽셀 파티클 개수")]
     [SerializeField] private int pixelCount = 30;
+    [Tooltip("중심에서 생성될 픽셀 개수")]
+    [SerializeField] private int centerPixelCount = 60;
     [Tooltip("픽셀 크기")]
     [SerializeField] private float pixelSize = 0.08f;
     [Tooltip("픽셀 흩어지는 거리")]
@@ -362,6 +364,9 @@ public class SecondaryChargedAttackHammerWithSectorComponent : MonoBehaviour, IS
         // 픽셀 파티클을 즉시 생성 (확장과 동시에 터져나감)
         SpawnPixelParticles(visualParent, center, forwardDir, angleRad, halfAngleRad, arcSegments);
 
+        // 중심에서 퍼지는 픽셀 생성
+        SpawnCenterPixelParticles(visualParent, center, forwardDir, angleRad, halfAngleRad);
+
         // 확장 애니메이션
         float elapsed = 0f;
         while (elapsed < shockwaveExpandTime)
@@ -571,6 +576,104 @@ public class SecondaryChargedAttackHammerWithSectorComponent : MonoBehaviour, IS
             // 픽셀 애니메이션 시작
             StartCoroutine(AnimatePixelParticle(pixel, pixelPosition, scatterDir));
         }
+    }
+
+    /// <summary>
+    /// 중심에서 부채꼴 영역으로 퍼지는 픽셀 파티클 생성
+    /// </summary>
+    private void SpawnCenterPixelParticles(GameObject parent, Vector2 center, Vector2 forwardDir, float angleRad, float halfAngleRad)
+    {
+        if (centerPixelCount <= 0) return;
+
+        // 부채꼴 영역 내에서 랜덤하게 픽셀 생성
+        for (int i = 0; i < centerPixelCount; i++)
+        {
+            // 랜덤한 각도 (부채꼴 범위 내)
+            float randomAngleOffset = Random.Range(-halfAngleRad, halfAngleRad);
+            float pixelAngle = angleRad + randomAngleOffset;
+
+            // 랜덤한 거리 (0 ~ sectorRadius)
+            float randomDistance = Random.Range(0f, sectorRadius);
+
+            // 목표 위치 계산
+            Vector2 targetPosition = center + new Vector2(Mathf.Cos(pixelAngle), Mathf.Sin(pixelAngle)) * randomDistance;
+
+            // 픽셀 GameObject 생성
+            GameObject pixel = new GameObject($"CenterPixel_{i}");
+            pixel.transform.SetParent(parent.transform);
+            pixel.transform.position = center; // 중심에서 시작
+
+            // SpriteRenderer로 정사각형 표현
+            SpriteRenderer sr = pixel.AddComponent<SpriteRenderer>();
+            sr.sprite = CreateSquareSprite();
+            sr.color = shockwaveColor;
+            sr.sortingOrder = 10;
+
+            // 픽셀 크기 설정 (크고 작은 변화)
+            float size = pixelSize * Random.Range(0.5f, 2.0f);
+            pixel.transform.localScale = Vector3.one * size;
+
+            // 픽셀 애니메이션 시작 (확장 시간에 맞춰 이동)
+            Vector2 direction = (targetPosition - center).normalized;
+            float distance = Vector2.Distance(center, targetPosition);
+            StartCoroutine(AnimateCenterPixelParticle(pixel, center, direction, distance));
+        }
+    }
+
+    /// <summary>
+    /// 중심 픽셀 파티클 애니메이션 - 확장 시간에 맞춰 이동하며 페이드아웃
+    /// </summary>
+    private System.Collections.IEnumerator AnimateCenterPixelParticle(GameObject pixel, Vector2 startPos, Vector2 direction, float targetDistance)
+    {
+        SpriteRenderer sr = pixel.GetComponent<SpriteRenderer>();
+        if (sr == null) yield break;
+
+        float elapsed = 0f;
+        Color initialColor = sr.color;
+
+        // 확장 시간에 맞춰 이동
+        while (elapsed < shockwaveExpandTime)
+        {
+            elapsed += Time.deltaTime;
+            float t = Mathf.Clamp01(elapsed / shockwaveExpandTime);
+
+            // 확장 커브 적용
+            float curveValue = shockwaveExpandCurve.Evaluate(t);
+
+            // 위치 업데이트 (중심에서 목표 거리까지)
+            pixel.transform.position = startPos + direction * targetDistance * curveValue;
+
+            yield return null;
+        }
+
+        // 확장 완료 후 추가로 조금 더 이동하며 페이드아웃
+        float fadeElapsed = 0f;
+        Vector2 finalPos = pixel.transform.position;
+        float extraDistance = pixelScatterDistance;
+
+        while (fadeElapsed < pixelScatterTime)
+        {
+            fadeElapsed += Time.deltaTime;
+            float fadeT = fadeElapsed / pixelScatterTime;
+
+            // 추가 이동
+            float moveT = 1f - (1f - fadeT) * (1f - fadeT); // ease-out
+            pixel.transform.position = finalPos + direction * extraDistance * moveT;
+
+            // 페이드아웃
+            Color col = sr.color;
+            col.a = Mathf.Lerp(initialColor.a, 0f, fadeT);
+            sr.color = col;
+
+            // 크기 감소
+            float scale = Mathf.Lerp(1f, 0.5f, fadeT);
+            pixel.transform.localScale = Vector3.one * pixelSize * scale * Random.Range(0.5f, 2.0f);
+
+            yield return null;
+        }
+
+        // 애니메이션 종료 후 파괴
+        Destroy(pixel);
     }
 
     /// <summary>
