@@ -5364,7 +5364,7 @@ MonoBehaviour:
     m_RotationOrder: 4
   secondaryChargeTimeRequired: 0.6
   isSecondaryChargeShotEnabled: 1
-  currentSecondaryChargedAttackSO: {fileID: 11400000, guid: d938265e6977f3e409a9c30bdd182a28, type: 2}
+  enableSkillTestMode: 0
   retrieveRange: 50
   projectileLayer:
     serializedVersion: 2
@@ -5565,6 +5565,15 @@ MonoBehaviour:
     m_PreInfinity: 2
     m_PostInfinity: 2
     m_RotationOrder: 4
+  enableHammerTrail: 1
+  trailTime: 0.6
+  trailStartWidth: 8
+  trailEndWidth: 4
+  trailColor: {r: 0.7, g: 0.2, b: 1, a: 1}
+  trailMinVertexDistance: 0.005
+  trailMaterial: {fileID: 0}
+  trailAttachPointName: Head
+  trailLocalOffset: {x: 0, y: 0, z: 0}
 --- !u!1 &960132361
 GameObject:
   m_ObjectHideFlags: 0

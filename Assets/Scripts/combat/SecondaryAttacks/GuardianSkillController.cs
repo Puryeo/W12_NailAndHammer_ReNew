@@ -37,6 +37,26 @@ public class GuardianSkillController : MonoBehaviour, ISecondaryChargedAttack
     [SerializeField] private float executeHealAmount = 50f;
     [SerializeField] private AnimationCurve swingCurve = AnimationCurve.EaseInOut(0f, 0f, 1f, 1f);
 
+    [Header("4. Visual: Hammer Trail (TrailRenderer)")]
+    [Tooltip("해머 궤적을 TrailRenderer로 표시")]
+    [SerializeField] private bool enableHammerTrail = true;
+    [Tooltip("트레일이 남아있는 시간(초) — 해머 제거 후 페이드 아웃 시간")]
+    [SerializeField] private float trailTime = 0.6f;
+    [Tooltip("트레일 시작 너비")]
+    [SerializeField] private float trailStartWidth = 0.14f;
+    [Tooltip("트레일 끝 너비")]
+    [SerializeField] private float trailEndWidth = 0.0f;
+    [Tooltip("트레일 색상 (시작) -> 알파가 감소하며 사라짐)")]
+    [SerializeField] private Color trailColor = new Color(0.7f, 0.2f, 1f, 1f);
+    [Tooltip("트레일 최소 정점 거리 (작게 하면 더 촘촘)")]
+    [SerializeField] private float trailMinVertexDistance = 0.05f;
+    [Tooltip("트레일에 쓸 Material(Optional). 할당하지 않으면 기본 Sprites/Default 사용")]
+    [SerializeField] private Material trailMaterial = null;
+    [Tooltip("해머 내부의 특정 자식 Transform 이름에 트레일을 붙이고 싶다면 이름 입력(예: \"HeadPoint\"). 비워두면 해머 루트에 붙음")]
+    [SerializeField] private string trailAttachPointName = "";
+    [Tooltip("해머 루트(또는 attach point가 없을 때)에서 사용할 로컬 오프셋")]
+    [SerializeField] private Vector3 trailLocalOffset = new Vector3(0.5f, 0f, 0f);
+
     // 내부 상태
     private PlayerCombat playerCombat;
     private bool isSkillActive = false; // 중복 실행 방지
@@ -149,6 +169,8 @@ public class GuardianSkillController : MonoBehaviour, ISecondaryChargedAttack
         // - HammerSwingController 내부에서 ownerCombat(플레이어)을 사용하여 처형 보상 처리 가능
         // ------------------------------------------------
         GameObject hammer = null;
+        GameObject hammerTrailObj = null;
+
         if (hammerPrefab != null)
         {
             // instantiate at guardian world pos; HammerSwingController will parent it to ownerTransform (we pass guardian as ownerTransform)
@@ -181,6 +203,65 @@ public class GuardianSkillController : MonoBehaviour, ISecondaryChargedAttack
             else
             {
                 Debug.LogWarning("[GuardianSkillController] hammerPrefab에 HammerSwingController가 없습니다.");
+            }
+
+            // === TrailRenderer 생성 및 관리 ===
+            if (enableHammerTrail && hammer != null)
+            {
+                // 트레일을 해머의 자식(또는 attachPoint)에 만들어 해머 머리 위치로 오프셋을 줄 수 있게 함.
+                hammerTrailObj = new GameObject("HammerTrail");
+
+                // attach transform 찾기: 이름이 지정되어 있으면 해당 자식 Transform 사용
+                Transform attachTransform = null;
+                if (!string.IsNullOrEmpty(trailAttachPointName))
+                {
+                    // Find는 계층 하위에서 이름으로 검색
+                    attachTransform = hammer.transform.Find(trailAttachPointName);
+                    if (attachTransform == null)
+                    {
+                        Debug.LogWarning($"[GuardianSkillController] trailAttachPointName '{trailAttachPointName}' 을(를) 해머에서 찾지 못했습니다. 해머 루트에 붙입니다.");
+                    }
+                }
+
+                // 부모 설정: attachTransform이 있으면 해당 Transform에 붙이고 localPosition은 zero,
+                // 없으면 해머 루트에 붙이고 user 지정 오프셋(trailLocalOffset) 적용
+                if (attachTransform != null)
+                {
+                    hammerTrailObj.transform.SetParent(attachTransform, false);
+                    hammerTrailObj.transform.localPosition = Vector3.zero;
+                }
+                else
+                {
+                    hammerTrailObj.transform.SetParent(hammer.transform, false);
+                    hammerTrailObj.transform.localPosition = trailLocalOffset;
+                }
+
+                TrailRenderer tr = hammerTrailObj.AddComponent<TrailRenderer>();
+                tr.time = Mathf.Max(0.01f, trailTime);
+                tr.startWidth = Mathf.Max(0f, trailStartWidth);
+                tr.endWidth = Mathf.Max(0f, trailEndWidth);
+                tr.minVertexDistance = Mathf.Max(0.001f, trailMinVertexDistance);
+
+                // 머티리얼 설정
+                if (trailMaterial != null)
+                    tr.material = trailMaterial;
+                else
+                {
+                    var mat = new Material(Shader.Find("Sprites/Default"));
+                    mat.SetColor("_Color", trailColor);
+                    tr.material = mat;
+                }
+
+                // 색상 그라데이션: 시작 색(알파 유지) -> 끝은 투명
+                Gradient g = new Gradient();
+                g.SetKeys(
+                    new GradientColorKey[] { new GradientColorKey(trailColor, 0.0f), new GradientColorKey(trailColor, 1.0f) },
+                    new GradientAlphaKey[] { new GradientAlphaKey(trailColor.a, 0.0f), new GradientAlphaKey(0f, 1.0f) }
+                );
+                tr.colorGradient = g;
+
+                // 해머가 파괴될 때 트레일이 해머 하위에 있으면 분리하고 자연스럽게 사라지게 함
+                StartCoroutine(HammerTrailLifecycle(hammer.transform, hammerTrailObj, tr.time));
             }
         }
 
@@ -218,12 +299,38 @@ public class GuardianSkillController : MonoBehaviour, ISecondaryChargedAttack
         }
         RestoreCamera(cam, camIsOrtho, originalCamValue);
 
-        // Guardian은 소멸. HammerSwingController는 자체적으로 Destroy 될 수 있으나 안전하게 함께 정리
+        // Guardian은 소멸. 해머를 직접 Destroy 하기 전에 트레일이 해머 하위에 있으면 분리하여 남김
+        if (hammerTrailObj != null && hammer != null && hammerTrailObj.transform.IsChildOf(hammer.transform))
+        {
+            hammerTrailObj.transform.SetParent(null);
+            // TrailLifecycle 코루틴이 남은 페이드/정리를 담당
+            hammerTrailObj = null;
+        }
+
         if (hammer != null) Object.Destroy(hammer);
         if (guardian != null) Object.Destroy(guardian);
 
         isSkillActive = false;
         Debug.Log("[GuardianSkillController] 스킬 종료");
+    }
+
+    private IEnumerator HammerTrailLifecycle(Transform hammerTransform, GameObject trailObject, float trailDuration)
+    {
+        // 해머가 살아있을 동안 대기
+        while (hammerTransform != null)
+        {
+            yield return null;
+        }
+
+        // 해머가 파괴되면 트레일을 부모에서 분리(혹은 이미 분리됨)
+        if (trailObject != null)
+        {
+            // 안전하게 분리
+            trailObject.transform.SetParent(null);
+            // trailDuration 동안 대기(트레일이 자연스럽게 사라짐)
+            yield return new WaitForSeconds(Mathf.Max(0f, trailDuration));
+            if (trailObject != null) Object.Destroy(trailObject);
+        }
     }
 
     private void RestoreCamera(Camera cam, bool camIsOrtho, float value)
