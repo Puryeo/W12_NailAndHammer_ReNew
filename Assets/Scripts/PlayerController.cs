@@ -1,4 +1,4 @@
-using System.Collections;
+﻿using System.Collections;
 using UnityEngine;
 
 /// <summary>
@@ -155,10 +155,10 @@ public class PlayerController : MonoBehaviour
         }*/
 
         // R키: 사슬 회수
-        if (Input.GetKeyDown(KeyCode.R))
-        {
-            if (playerCombat != null) playerCombat.TryRetrieveStake();
-        }
+        //if (Input.GetKeyDown(KeyCode.R))
+        //{
+        //    if (playerCombat != null) playerCombat.TryRetrieveStake();
+        //}
 
         // Space: 대시
         if (Input.GetKeyDown(KeyCode.Space) && !isDashing && dashCooldownTimer <= 0)
