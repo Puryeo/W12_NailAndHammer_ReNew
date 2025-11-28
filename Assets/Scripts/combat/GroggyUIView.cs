@@ -55,9 +55,9 @@ public class GroggyUIView : MonoBehaviour
         {
             if (canRecover && recoveryDuration > 0f)
             {
-                // 부활 가능: Fill 애니메이션 시작
+                // 부활 가능: Fill 애니메이션 시작 (1 → 0으로 감소)
                 timerFillImage.color = recoveryFillColor;
-                timerFillImage.fillAmount = 0f;
+                timerFillImage.fillAmount = 1f;
 
                 if (fillCoroutine != null)
                     StopCoroutine(fillCoroutine);
@@ -68,11 +68,11 @@ public class GroggyUIView : MonoBehaviour
             }
             else
             {
-                // 부활 불가능: Fill 0으로 고정
+                // 부활 불가능: Fill 1로 고정
                 timerFillImage.color = noRecoveryFillColor;
-                timerFillImage.fillAmount = 0f;
+                timerFillImage.fillAmount = 1f;
 
-                if (showDebugLogs) Debug.Log($"GroggyUIView: 영구 그로기 표시 (Fill 0 고정)");
+                if (showDebugLogs) Debug.Log($"GroggyUIView: 영구 그로기 표시 (Fill 1 고정)");
             }
         }
 
@@ -119,7 +119,7 @@ public class GroggyUIView : MonoBehaviour
     }
 
     /// <summary>
-    /// Fill 애니메이션: 0 → 1로 채우기
+    /// Fill 애니메이션: 1 → 0으로 감소
     /// </summary>
     private IEnumerator AnimateFill(float duration)
     {
@@ -132,7 +132,7 @@ public class GroggyUIView : MonoBehaviour
 
             if (timerFillImage != null)
             {
-                timerFillImage.fillAmount = progress;
+                timerFillImage.fillAmount = 1f - progress; // 1에서 0으로 감소
             }
 
             yield return null;
@@ -141,12 +141,12 @@ public class GroggyUIView : MonoBehaviour
         // 완료 보장
         if (timerFillImage != null)
         {
-            timerFillImage.fillAmount = 1f;
+            timerFillImage.fillAmount = 0f;
         }
 
         fillCoroutine = null;
 
-        if (showDebugLogs) Debug.Log($"GroggyUIView: Fill 애니메이션 완료");
+        if (showDebugLogs) Debug.Log($"GroggyUIView: Fill 애니메이션 완료 (0으로 감소 완료)");
     }
 
     /// <summary>

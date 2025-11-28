@@ -7056,8 +7056,8 @@ MonoBehaviour:
     m_RotationOrder: 4
   sectorCenterOffset: 0.5
   sectorAngle: 60
-  sectorRadius: 3
-  sectorDamage: 25
+  sectorRadius: 10
+  sectorDamage: 50
   visualDuration: 0.3
   sectorKnockbackForce: 8
   sectorStunDuration: 0.15
@@ -7065,8 +7065,51 @@ MonoBehaviour:
     serializedVersion: 2
     m_Bits: 256
   maxDetectCount: 32
-  sectorColor: {r: 1, g: 0.5, b: 0, a: 0.8}
-  lineWidth: 0.1
+  shockwaveColor: {r: 1, g: 0, b: 0.08880377, a: 0.3529412}
+  sectorFillColor: {r: 1, g: 0, b: 0.08880377, a: 0.3529412}
+  shockwaveExpandTime: 0.5
+  sectorHoldTime: 0.1
+  sectorFadeOutTime: 0.1
+  shockwaveLineWidth: 0.2
+  shockwaveExpandCurve:
+    serializedVersion: 2
+    m_Curve:
+    - serializedVersion: 3
+      time: 0
+      value: 0
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0
+      outWeight: 0
+    - serializedVersion: 3
+      time: 0.5
+      value: 1
+      inSlope: -0.0068896227
+      outSlope: -0.0068896227
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0.6722803
+      outWeight: 0.33333334
+    - serializedVersion: 3
+      time: 1
+      value: 1
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0
+      outWeight: 0
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4
+  pixelCount: 90
+  centerPixelCount: 90
+  pixelSize: 0.2
+  pixelScatterDistance: 1
+  pixelScatterTime: 2
+  pixelRandomSpeedVariation: 0.3
   showDebugLogs: 0
 --- !u!114 &956203904
 MonoBehaviour:
@@ -9951,7 +9994,7 @@ PrefabInstance:
       objectReference: {fileID: 1565706156}
     - target: {fileID: 182227301945727203, guid: 934c90bd34407334a87fbe99e262a057, type: 3}
       propertyPath: allAvailableSkills.Array.size
-      value: 4
+      value: 5
       objectReference: {fileID: 0}
     - target: {fileID: 182227301945727203, guid: 934c90bd34407334a87fbe99e262a057, type: 3}
       propertyPath: allAvailableSkills.Array.data[0].skillIcon
@@ -9978,8 +10021,24 @@ PrefabInstance:
       value: 5
       objectReference: {fileID: 0}
     - target: {fileID: 182227301945727203, guid: 934c90bd34407334a87fbe99e262a057, type: 3}
+      propertyPath: allAvailableSkills.Array.data[4].skillIcon
+      value: 
+      objectReference: {fileID: 21300000, guid: 14ce79fd11ab19a4f894bff8d03001b9, type: 3}
+    - target: {fileID: 182227301945727203, guid: 934c90bd34407334a87fbe99e262a057, type: 3}
+      propertyPath: allAvailableSkills.Array.data[4].skillName
+      value: "\uCDA9\uACA9\uD30C"
+      objectReference: {fileID: 0}
+    - target: {fileID: 182227301945727203, guid: 934c90bd34407334a87fbe99e262a057, type: 3}
+      propertyPath: allAvailableSkills.Array.data[4].skillType
+      value: 4
+      objectReference: {fileID: 0}
+    - target: {fileID: 182227301945727203, guid: 934c90bd34407334a87fbe99e262a057, type: 3}
       propertyPath: allAvailableSkills.Array.data[3].skillDescription
       value: "\uC2A4\uD50C\uB798\uC26C\uC784"
+      objectReference: {fileID: 0}
+    - target: {fileID: 182227301945727203, guid: 934c90bd34407334a87fbe99e262a057, type: 3}
+      propertyPath: allAvailableSkills.Array.data[4].skillDescription
+      value: "\uCDA9\uACA9\uD30C"
       objectReference: {fileID: 0}
     - target: {fileID: 838431765199492044, guid: 934c90bd34407334a87fbe99e262a057, type: 3}
       propertyPath: playerCombat

@@ -720,6 +720,7 @@ public class AttackProjectile : MonoBehaviour
             {
                 ReturnOrDestroy();
             }
+            return; // 즉시 회수 완료 - 상태 전환 불필요 (이미 CompleteRetrieval/ReturnOrDestroy에서 처리 완료)
         }
 
         // 상태 전환
