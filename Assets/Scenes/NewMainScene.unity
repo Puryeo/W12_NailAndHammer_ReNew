@@ -5661,6 +5661,7 @@ GameObject:
   - component: {fileID: 956203901}
   - component: {fileID: 956203903}
   - component: {fileID: 956203902}
+  - component: {fileID: 956203904}
   m_Layer: 0
   m_Name: Player
   m_TagString: Player
@@ -6181,6 +6182,30 @@ MonoBehaviour:
   spinePrefab: {fileID: 1866082589576011882, guid: c671e891270c4b84c97361f6b45ab6c1, type: 3}
   spineCount: 6
   spineRadius: 2.5
+--- !u!114 &956203904
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 956203889}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b0a5523fc06090749a660b3b2250bd37, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  splashHammerPrefab: {fileID: 499222343195171404, guid: add965516ed3bba4fa0410cbd08d398f, type: 3}
+  spawnOffset: {x: 0.5, y: 0.5}
+  smashDuration: 0.2
+  impactRadius: 2
+  damage: 40
+  knockbackForce: 15
+  projectilePrefab: {fileID: 496497374018621148, guid: 397fe2f896ac5644d972a90bc2b09f95, type: 3}
+  projectileSpeed: 10
+  projectileLifetime: 2
+  projectileDamageToNormal: 50
+  projectileDamageToGroggy: 999
+  showDebugLogs: 1
 --- !u!1 &960132361
 GameObject:
   m_ObjectHideFlags: 0
