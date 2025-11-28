@@ -6547,6 +6547,7 @@ GameObject:
   - component: {fileID: 956203902}
   - component: {fileID: 956203901}
   - component: {fileID: 956203900}
+  - component: {fileID: 956203904}
   m_Layer: 0
   m_Name: Player
   m_TagString: Player
@@ -7066,6 +7067,30 @@ MonoBehaviour:
   maxDetectCount: 32
   sectorColor: {r: 1, g: 0.5, b: 0, a: 0.8}
   lineWidth: 0.1
+  showDebugLogs: 0
+--- !u!114 &956203904
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 956203889}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b0a5523fc06090749a660b3b2250bd37, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  splashHammerPrefab: {fileID: 499222343195171404, guid: add965516ed3bba4fa0410cbd08d398f, type: 3}
+  spawnOffset: {x: 0.5, y: 0.5}
+  smashDuration: 0.2
+  impactRadius: 2
+  damage: 40
+  knockbackForce: 15
+  projectilePrefab: {fileID: 496497374018621148, guid: 397fe2f896ac5644d972a90bc2b09f95, type: 3}
+  projectileSpeed: 10
+  projectileLifetime: 2
+  projectileDamageToNormal: 50
+  projectileDamageToGroggy: 999
   showDebugLogs: 0
 --- !u!1 &960132361
 GameObject:
@@ -9935,11 +9960,11 @@ PrefabInstance:
     - target: {fileID: 182227301945727203, guid: 934c90bd34407334a87fbe99e262a057, type: 3}
       propertyPath: allAvailableSkills.Array.data[1].skillIcon
       value: 
-      objectReference: {fileID: -3298626994855174906, guid: 2852bfb7c4077be41b7edb8e27a80921, type: 3}
+      objectReference: {fileID: 21300000, guid: 6848526c108dec545b4c0b3c892006fc, type: 3}
     - target: {fileID: 182227301945727203, guid: 934c90bd34407334a87fbe99e262a057, type: 3}
       propertyPath: allAvailableSkills.Array.data[2].skillIcon
       value: 
-      objectReference: {fileID: 9198549323273911569, guid: 2d2d8db027caf6b4aa37696e5aef7909, type: 3}
+      objectReference: {fileID: 21300000, guid: 27dcfd68fecd101469e18048be90f46f, type: 3}
     - target: {fileID: 182227301945727203, guid: 934c90bd34407334a87fbe99e262a057, type: 3}
       propertyPath: allAvailableSkills.Array.data[3].skillIcon
       value: 
@@ -9983,7 +10008,7 @@ PrefabInstance:
     - target: {fileID: 838431765199492044, guid: 934c90bd34407334a87fbe99e262a057, type: 3}
       propertyPath: initialDeck.Array.data[0].cardIcon
       value: 
-      objectReference: {fileID: 0}
+      objectReference: {fileID: 9158274463673004096, guid: 6203481542cc05a4985ebbb4033ecd45, type: 3}
     - target: {fileID: 838431765199492044, guid: 934c90bd34407334a87fbe99e262a057, type: 3}
       propertyPath: initialDeck.Array.data[0].cardName
       value: "\uC2A4\uD50C\uB798\uC26C"
