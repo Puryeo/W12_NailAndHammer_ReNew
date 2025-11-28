@@ -1,107 +1,141 @@
-using UnityEngine;
+ï»¿using UnityEngine;
 
 /// <summary>
-/// ½ºÅ×ÀÌÁö º¸»ó ¿ÀºêÁ§Æ®¿¡ ºÙÀÏ ½ºÅ©¸³Æ®
-/// ÇÃ·¹ÀÌ¾î¿Í Ãæµ¹ ½Ã º¸»ó ÆĞ³ÎÀ» ¶ç¿ì°í, ¿£ÅÍ Å°·Î º¸»ó È¹µæ
+/// ìŠ¤í…Œì´ì§€ ë³´ìƒ ì˜¤ë¸Œì íŠ¸ì— ë¶™ì¼ ìŠ¤í¬ë¦½íŠ¸
+/// í”Œë ˆì´ì–´ì™€ ì¶©ëŒ ì‹œ ë³´ìƒ íŒ¨ë„ì„ ë„ìš°ê³  ìë™ìœ¼ë¡œ ë³´ìƒ íšë“ ì²˜ë¦¬
 /// </summary>
 [RequireComponent(typeof(Collider2D))]
 public class StageReward : MonoBehaviour
 {
-    [Header("º¸»ó ÆĞ³Î ¼³Á¤")]
-    [Tooltip("¶ç¿ï º¸»ó ÆĞ³Î UI (Canvas ¾ÈÀÇ Panel)")]
+    [Header("ë³´ìƒ íŒ¨ë„ ì„¤ì •")]
+    [Tooltip("ë„ìš¸ ë³´ìƒ íŒ¨ë„ UI (Canvas ì•ˆì˜ Panel)")]
     [SerializeField] private GameObject rewardPanel;
 
-    [Header("µğ¹ö±×")]
+    [Header("ìë™ ë‹«ê¸° ì„¤ì •")]
+    [Tooltip("ë³´ìƒ íŒ¨ë„ì„ ìë™ìœ¼ë¡œ ë‹«ì„ì§€ ì—¬ë¶€ (trueë©´ ìë™, falseë©´ ìˆ˜ë™)")]
+    [SerializeField] private bool autoClosePanel = false;
+
+    [Tooltip("ìë™ìœ¼ë¡œ íŒ¨ë„ì„ ë‹«ì„ ë•Œê¹Œì§€ ëŒ€ê¸° ì‹œê°„ (ì´ˆ)")]
+    [SerializeField] private float autoCloseDelay = 2f;
+
+    [Header("ë””ë²„ê·¸")]
     [SerializeField] private bool showDebugLogs = true;
 
-    // ÆĞ³ÎÀÌ ÇöÀç ÄÑÁ®ÀÖ´ÂÁö ¿©ºÎ
+    // íŒ¨ë„ì´ í˜„ì¬ ì¼œì ¸ìˆëŠ”ì§€ ì—¬ë¶€
     private bool isPanelActive = false;
+
+    // ë³´ìƒ íšë“ ì²˜ë¦¬ê°€ ì™„ë£Œë˜ì—ˆëŠ”ì§€
+    private bool hasClaimedReward = false;
 
     private void Awake()
     {
-        // Ã³À½¿£ º¸»ó ÆĞ³ÎÀ» ²¨µÓ´Ï´Ù
+        // ì²˜ìŒì—” ë³´ìƒ íŒ¨ë„ì„ êº¼ë‘¡ë‹ˆë‹¤
         if (rewardPanel != null)
         {
             rewardPanel.SetActive(false);
         }
 
-        // Collider°¡ Trigger·Î ¼³Á¤µÇ¾î ÀÖ´ÂÁö È®ÀÎ
+        // Colliderê°€ Triggerë¡œ ì„¤ì •ë˜ì–´ ìˆëŠ”ì§€ í™•ì¸
         Collider2D col = GetComponent<Collider2D>();
         if (col != null && !col.isTrigger)
         {
             col.isTrigger = true;
             if (showDebugLogs)
             {
-                Debug.Log($"StageReward [{gameObject.name}]: Collider¸¦ Trigger·Î ÀÚµ¿ ¼³Á¤Çß½À´Ï´Ù.");
+                Debug.Log($"StageReward [{gameObject.name}]: Colliderë¥¼ Triggerë¡œ ìë™ ì„¤ì •í–ˆìŠµë‹ˆë‹¤.");
             }
         }
     }
 
     private void Update()
     {
-        // ÆĞ³ÎÀÌ ÄÑÁ®ÀÖÀ» ¶§¸¸ ¿£ÅÍ Å° ÀÔ·Â °¨Áö
-        if (isPanelActive && Input.GetKeyDown(KeyCode.Return))
+        // íŒ¨ë„ì´ ì¼œì ¸ìˆê³  ì•„ì§ ë³´ìƒì„ ë°›ì§€ ì•Šì•˜ì„ ë•Œë§Œ ì—”í„° í‚¤ ì…ë ¥ ê°ì§€
+        if (isPanelActive && !hasClaimedReward && Input.GetKeyDown(KeyCode.Return))
         {
             if (showDebugLogs)
             {
-                Debug.Log($"StageReward [{gameObject.name}]: ¿£ÅÍ Å° ÀÔ·Â! º¸»ó È¹µæ Ã³¸®");
+                Debug.Log($"StageReward [{gameObject.name}]: ì—”í„° í‚¤ ì…ë ¥! ë³´ìƒ íšë“ ì²˜ë¦¬");
             }
-
             ClaimReward();
         }
     }
 
     private void OnTriggerEnter2D(Collider2D collision)
     {
-        // ÇÃ·¹ÀÌ¾î¿Í Ãæµ¹Çß´ÂÁö È®ÀÎ
+        // ì´ë¯¸ ë³´ìƒì„ ë°›ì•˜ìœ¼ë©´ ë¬´ì‹œ
+        if (hasClaimedReward)
+        {
+            return;
+        }
+
+        // í”Œë ˆì´ì–´ì™€ ì¶©ëŒí–ˆëŠ”ì§€ í™•ì¸
         if (collision.CompareTag("Player"))
         {
             if (showDebugLogs)
             {
-                Debug.Log($"StageReward [{gameObject.name}]: ÇÃ·¹ÀÌ¾î¿Í Ãæµ¹! º¸»ó ÆĞ³ÎÀ» ¶ç¿ó´Ï´Ù.");
+                Debug.Log($"StageReward [{gameObject.name}]: í”Œë ˆì´ì–´ì™€ ì¶©ëŒ! ë³´ìƒ íŒ¨ë„ì„ ë„ì›ë‹ˆë‹¤.");
             }
 
-            // º¸»ó ÆĞ³Î È°¼ºÈ­
+            // ë³´ìƒ íŒ¨ë„ í™œì„±í™”
             if (rewardPanel != null)
             {
                 rewardPanel.SetActive(true);
                 isPanelActive = true;
 
-                // Time.timeScale = 0À¸·Î °ÔÀÓÀ» ÀÏ½ÃÁ¤ÁöÇÏ°í ½Í´Ù¸é ¿©±â¿¡ Ãß°¡
-                // Time.timeScale = 0f;
+                // âœ… ìë™ìœ¼ë¡œ ë³´ìƒ íšë“ ì²˜ë¦¬
+                ClaimReward();
+
+                // ìë™ ë‹«ê¸° ì˜µì…˜ì´ ì¼œì ¸ìˆìœ¼ë©´ ì¼ì • ì‹œê°„ í›„ íŒ¨ë„ ë‹«ê¸°
+                if (autoClosePanel)
+                {
+                    Invoke(nameof(ClosePanel), autoCloseDelay);
+                }
             }
             else
             {
-                Debug.LogWarning($"StageReward [{gameObject.name}]: º¸»ó ÆĞ³ÎÀÌ ¿¬°áµÇÁö ¾Ê¾Ò½À´Ï´Ù!");
+                Debug.LogWarning($"StageReward [{gameObject.name}]: ë³´ìƒ íŒ¨ë„ì´ ì—°ê²°ë˜ì§€ ì•Šì•˜ìŠµë‹ˆë‹¤!");
             }
         }
     }
 
     /// <summary>
-    /// º¸»ó È¹µæ Ã³¸® (¿£ÅÍ Å°·Î È£Ãâ)
+    /// ë³´ìƒ íšë“ ì²˜ë¦¬ (ìë™ í˜¸ì¶œ)
     /// </summary>
     private void ClaimReward()
     {
-        // ÆĞ³Î ²ô±â
+        if (hasClaimedReward)
+        {
+            return; // ì¤‘ë³µ ì²˜ë¦¬ ë°©ì§€
+        }
+
+        hasClaimedReward = true;
+
+        // StageManagerëŠ” ì´ë¯¸ CheckStageComplete()ì—ì„œ ë‹¤ìŒ ìŠ¤í…Œì´ì§€ ì¤€ë¹„ë¥¼ ì™„ë£Œí•œ ìƒíƒœ
+        // ì¶”ê°€ ì²˜ë¦¬ í•„ìš” ì—†ìŒ
+
+        if (showDebugLogs)
+        {
+            Debug.Log($"StageReward [{gameObject.name}]: ë³´ìƒ íšë“ ì™„ë£Œ! (StageManagerê°€ ìë™ìœ¼ë¡œ ë‹¤ìŒ ìŠ¤í…Œì´ì§€ ì¤€ë¹„ ì™„ë£Œ)");
+        }
+    }
+
+    /// <summary>
+    /// ë³´ìƒ íŒ¨ë„ ë‹«ê¸° (ìˆ˜ë™ ë˜ëŠ” ìë™)
+    /// </summary>
+    public void ClosePanel()
+    {
         if (rewardPanel != null)
         {
             rewardPanel.SetActive(false);
             isPanelActive = false;
+
+            if (showDebugLogs)
+            {
+                Debug.Log($"StageReward [{gameObject.name}]: ë³´ìƒ íŒ¨ë„ ë‹«ê¸°");
+            }
         }
 
-        // StageManager¿¡°Ô ´ÙÀ½ ½ºÅ×ÀÌÁö·Î ³Ñ¾î°¡¶ó°í ¾Ë¸²
-        if (StageManager.Instance != null)
-        {
-            StageManager.Instance.ClaimRewardAndNextStage();
-        }
-        else
-        {
-            Debug.LogWarning($"StageReward [{gameObject.name}]: StageManager¸¦ Ã£À» ¼ö ¾ø½À´Ï´Ù!");
-        }
-
-        if (showDebugLogs)
-        {
-            Debug.Log($"StageReward [{gameObject.name}]: º¸»ó È¹µæ ¿Ï·á! ´ÙÀ½ ½ºÅ×ÀÌÁö·Î ÀÌµ¿");
-        }
+        // ë³´ìƒ ì˜¤ë¸Œì íŠ¸ ìì²´ë„ ë¹„í™œì„±í™” (ì¬ì‚¬ìš© ë°©ì§€)
+        gameObject.SetActive(false);
     }
 }

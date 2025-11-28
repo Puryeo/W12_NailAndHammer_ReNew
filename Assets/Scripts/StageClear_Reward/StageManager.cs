@@ -3,6 +3,7 @@ using System.Collections.Generic;
 
 /// <summary>
 /// 스테이지별 적 처치 목표와 보상을 관리하는 매니저
+/// - 목표 달성 시 자동으로 보상 패널 표시 및 다음 스테이지 준비
 /// </summary>
 public class StageManager : MonoBehaviour
 {
@@ -131,6 +132,7 @@ public class StageManager : MonoBehaviour
 
     /// <summary>
     /// 현재 스테이지의 목표를 달성했는지 확인
+    /// - 목표 달성 시 자동으로 보상 패널 표시 및 다음 스테이지 준비
     /// </summary>
     private void CheckStageComplete()
     {
@@ -167,56 +169,20 @@ public class StageManager : MonoBehaviour
             {
                 Debug.LogWarning($"StageManager: 스테이지 {currentStage.stageNumber}의 보상 오브젝트가 설정되지 않았습니다!");
             }
+
+            // ✅ 자동으로 다음 스테이지로 진행
+            PrepareNextStage();
         }
     }
 
     /// <summary>
-    /// UI를 현재 킬 카운트로 업데이트
+    /// 다음 스테이지 준비 (자동 호출)
     /// </summary>
-    private void UpdateUI()
+    private void PrepareNextStage()
     {
-        if (currentStageIndex >= stages.Length)
-        {
-            return;
-        }
-
-        StageData currentStage = stages[currentStageIndex];
-
-        if (killUI != null)
-        {
-            killUI.UpdateKillCount(currentKillCount, currentStage.targetKillCount);
-        }
-        else
-        {
-            Debug.LogWarning("StageManager: killUI가 연결되지 않았습니다!");
-        }
-    }
-
-    /// <summary>
-    /// 보상 획득 후 다음 스테이지로 넘어가기 (버튼에서 호출)
-    /// </summary>
-    public void ClaimRewardAndNextStage()
-    {
-        if (currentStageIndex >= stages.Length)
-        {
-            if (showDebugLogs)
-            {
-                Debug.Log("StageManager: 이미 모든 스테이지를 클리어했습니다!");
-            }
-            return;
-        }
-
-        StageData currentStage = stages[currentStageIndex];
-
         if (showDebugLogs)
         {
-            Debug.Log($"StageManager: 스테이지 {currentStage.stageNumber} 보상 획득! 다음 스테이지로 이동합니다.");
-        }
-
-        // 현재 보상 오브젝트 비활성화
-        if (currentStage.rewardObject != null)
-        {
-            currentStage.rewardObject.SetActive(false);
+            Debug.Log($"StageManager: 다음 스테이지 준비 중...");
         }
 
         // 다음 스테이지로 이동
@@ -243,7 +209,7 @@ public class StageManager : MonoBehaviour
                 Debug.Log("StageManager: 🎉 모든 스테이지 클리어! 게임 종료");
             }
 
-            // 모든 스테이지 클리어 시 UI 처리 (선택사항)
+            // 모든 스테이지 클리어 시 UI 처리
             if (killUI != null)
             {
                 killUI.UpdateKillCount(0, 0);
@@ -251,7 +217,56 @@ public class StageManager : MonoBehaviour
         }
     }
 
-    // 디버그용: 현재 상태 확인
+    /// <summary>
+    /// UI를 현재 킬 카운트로 업데이트
+    /// </summary>
+    private void UpdateUI()
+    {
+        if (currentStageIndex >= stages.Length)
+        {
+            return;
+        }
+
+        StageData currentStage = stages[currentStageIndex];
+
+        if (killUI != null)
+        {
+            killUI.UpdateKillCount(currentKillCount, currentStage.targetKillCount);
+        }
+        else
+        {
+            Debug.LogWarning("StageManager: killUI가 연결되지 않았습니다!");
+        }
+    }
+
+    /// <summary>
+    /// 보상 획득 후 보상 패널 닫기 (버튼에서 호출 - 선택사항)
+    /// </summary>
+    public void CloseRewardPanel()
+    {
+        if (currentStageIndex <= 0 || currentStageIndex > stages.Length)
+        {
+            return;
+        }
+
+        // 이전 스테이지의 보상 패널 닫기
+        StageData previousStage = stages[currentStageIndex - 1];
+        if (previousStage.rewardObject != null)
+        {
+            previousStage.rewardObject.SetActive(false);
+
+            if (showDebugLogs)
+            {
+                Debug.Log($"StageManager: 보상 패널 [{previousStage.rewardObject.name}] 닫기");
+            }
+        }
+    }
+
+    // ==================== 디버그 ====================
+
+    /// <summary>
+    /// 디버그용: 현재 상태 확인
+    /// </summary>
     private void OnGUI()
     {
         if (!showDebugLogs) return;
@@ -259,4 +274,22 @@ public class StageManager : MonoBehaviour
         GUI.Label(new Rect(10, 10, 300, 20), $"현재 스테이지: {(currentStageIndex < stages.Length ? stages[currentStageIndex].stageNumber.ToString() : "완료")}");
         GUI.Label(new Rect(10, 30, 300, 20), $"킬 카운트: {currentKillCount}");
     }
+
+#if UNITY_EDITOR
+    [ContextMenu("테스트: 적 1마리 죽이기")]
+    private void TestKillEnemy()
+    {
+        OnEnemyKilled(gameObject); // 임시로 자기 자신을 적으로 간주
+    }
+
+    [ContextMenu("테스트: 스테이지 즉시 클리어")]
+    private void TestCompleteStage()
+    {
+        if (currentStageIndex < stages.Length)
+        {
+            currentKillCount = stages[currentStageIndex].targetKillCount;
+            CheckStageComplete();
+        }
+    }
+#endif
 }
