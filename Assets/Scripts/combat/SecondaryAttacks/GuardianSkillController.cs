@@ -66,7 +66,7 @@ public class GuardianSkillController : MonoBehaviour, ISecondaryChargedAttack
     private PlayerCombat playerCombat;
     private bool isSkillActive = false; // 중복 실행 방지
 
-/*    private void Awake()
+    private void Awake()
     {
         playerCombat = GetComponent<PlayerCombat>();
 
@@ -76,7 +76,7 @@ public class GuardianSkillController : MonoBehaviour, ISecondaryChargedAttack
             playerCombat.SetSecondaryChargedAttack(this);
             Debug.Log("[GuardianSkillController] PlayerCombat에 자동 등록됨.");
         }
-    }*/
+    }
 
     private void Update()
     {
@@ -90,18 +90,25 @@ public class GuardianSkillController : MonoBehaviour, ISecondaryChargedAttack
         }
     }
 
+    // 편의용: 파라미터 없는 실행 (자기 transform 사용)
+    public void Execute()
+    {
+        if (playerCombat == null) playerCombat = GetComponent<PlayerCombat>();
+        Execute(playerCombat, transform);
+    }
+
     // ISecondaryChargedAttack 진입점 (PlayerCombat에서 호출)
     public void Execute(PlayerCombat owner, Transform ownerTransform)
     {
         if (isSkillActive) return;
         if (guardianPrefab == null)
         {
-            Debug.LogWarning($"[{GetAttackName()}] guardianPrefab이 할당되지 않았습니다.");
+            Debug.LogWarning("[GuardianSkillController] guardianPrefab이 할당되지 않았습니다.");
             return;
         }
         if (hammerPrefab == null)
         {
-            Debug.LogWarning($"[{GetAttackName()}] hammerPrefab이 할당되지 않았습니다. 수호신은 소환되지만 휘두를 수 없습니다.");
+            Debug.LogWarning("[GuardianSkillController] hammerPrefab이 할당되지 않았습니다. 수호신은 소환되지만 휘두를 수 없습니다.");
         }
 
         StartCoroutine(SkillSequence(owner, ownerTransform ?? transform));
@@ -146,7 +153,7 @@ public class GuardianSkillController : MonoBehaviour, ISecondaryChargedAttack
         GameObject guardian = Object.Instantiate(guardianPrefab, guardianWorldPos, ownerTransform.rotation);
         if (guardian == null)
         {
-            Debug.LogWarning($"[{GetAttackName()}] guardian 인스턴스 생성 실패");
+            Debug.LogWarning("[GuardianSkillController] guardian 인스턴스 생성 실패");
             RestoreCamera(cam, camIsOrtho, originalCamValue);
             isSkillActive = false;
             yield break;
@@ -278,14 +285,18 @@ public class GuardianSkillController : MonoBehaviour, ISecondaryChargedAttack
                 }
                 catch (System.Exception ex)
                 {
-                    Debug.LogWarning($"[{GetAttackName()}] baseLocalAngle 고정 실패: {ex.Message}");
+                    Debug.LogWarning($"[GuardianSkillController] baseLocalAngle 고정 실패: {ex.Message}");
                 }
 
-                IgnorePlayerHammerCollision(ownerTransform, hammer);
+                var hammerCols = hammer.GetComponentsInChildren<Collider2D>();
+                var playerCols = ownerTransform.GetComponentsInChildren<Collider2D>();
+                foreach (var hcCol in hammerCols)
+                    foreach (var pc in playerCols)
+                        if (hcCol != null && pc != null) Physics2D.IgnoreCollision(hcCol, pc, true);
             }
             else
             {
-                Debug.LogWarning($"[{GetAttackName()}] hammerPrefab에 HammerSwingController가 없습니다.");
+                Debug.LogWarning("[GuardianSkillController] hammerPrefab에 HammerSwingController가 없습니다.");
             }
 
             if (enableHammerTrail && hammer != null)
@@ -297,7 +308,7 @@ public class GuardianSkillController : MonoBehaviour, ISecondaryChargedAttack
                     attachTransform = hammer.transform.Find(trailAttachPointName);
                     if (attachTransform == null)
                     {
-                        Debug.LogWarning($"[{GetAttackName()}] trailAttachPointName '{trailAttachPointName}' 을(를) 해머에서 찾지 못했습니다. 해머 루트에 붙습니다.");
+                        Debug.LogWarning($"[GuardianSkillController] trailAttachPointName '{trailAttachPointName}' 을(를) 해머에서 찾지 못했습니다. 해머 루트에 붙입니다.");
                     }
                 }
 
