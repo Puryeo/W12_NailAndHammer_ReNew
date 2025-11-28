@@ -5759,7 +5759,7 @@ MonoBehaviour:
   impactRadius: 2
   damage: 40
   knockbackForce: 15
-  spinePrefab: {fileID: 129415160358822721, guid: 4e8ec492ba45ff349839ecb5e92df983, type: 3}
+  spinePrefab: {fileID: 1866082589576011882, guid: c671e891270c4b84c97361f6b45ab6c1, type: 3}
   spineCount: 6
   spineRadius: 2.5
 --- !u!114 &956203901
