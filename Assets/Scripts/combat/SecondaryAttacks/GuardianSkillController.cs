@@ -66,7 +66,7 @@ public class GuardianSkillController : MonoBehaviour, ISecondaryChargedAttack
     private PlayerCombat playerCombat;
     private bool isSkillActive = false; // 중복 실행 방지
 
-    private void Awake()
+/*    private void Awake()
     {
         playerCombat = GetComponent<PlayerCombat>();
 
@@ -76,7 +76,7 @@ public class GuardianSkillController : MonoBehaviour, ISecondaryChargedAttack
             playerCombat.SetSecondaryChargedAttack(this);
             Debug.Log("[GuardianSkillController] PlayerCombat에 자동 등록됨.");
         }
-    }
+    }*/
 
     private void Update()
     {
