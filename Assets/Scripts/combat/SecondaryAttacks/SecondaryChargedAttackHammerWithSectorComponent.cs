@@ -51,11 +51,33 @@ public class SecondaryChargedAttackHammerWithSectorComponent : MonoBehaviour, IS
     [Tooltip("최대 감지 가능한 적 수")]
     [SerializeField] private int maxDetectCount = 32;
 
-    [Header("Visual")]
-    [Tooltip("부채꼴 라인 색상")]
-    [SerializeField] private Color sectorColor = new Color(1f, 0.5f, 0f, 0.8f);
-    [Tooltip("라인 두께")]
-    [SerializeField] private float lineWidth = 0.1f;
+    [Header("Shockwave Visual")]
+    [Tooltip("충격파 외곽선 색상")]
+    [SerializeField] private Color shockwaveColor = new Color(1f, 0.8f, 0f, 1f);
+    [Tooltip("부채꼴 내부 채우기 색상")]
+    [SerializeField] private Color sectorFillColor = new Color(1f, 0.8f, 0f, 0.5f);
+    [Tooltip("충격파 확장 시간")]
+    [SerializeField] private float shockwaveExpandTime = 0.15f;
+    [Tooltip("확장 완료 후 부채꼴 유지 시간")]
+    [SerializeField] private float sectorHoldTime = 0.1f;
+    [Tooltip("부채꼴 페이드아웃 시간")]
+    [SerializeField] private float sectorFadeOutTime = 0.1f;
+    [Tooltip("충격파 라인 두께")]
+    [SerializeField] private float shockwaveLineWidth = 0.2f;
+    [Tooltip("충격파 확장 커브")]
+    [SerializeField] private AnimationCurve shockwaveExpandCurve = AnimationCurve.EaseInOut(0f, 0f, 1f, 1f);
+
+    [Header("Pixel Particle Effect")]
+    [Tooltip("픽셀 파티클 개수")]
+    [SerializeField] private int pixelCount = 30;
+    [Tooltip("픽셀 크기")]
+    [SerializeField] private float pixelSize = 0.08f;
+    [Tooltip("픽셀 흩어지는 거리")]
+    [SerializeField] private float pixelScatterDistance = 0.4f;
+    [Tooltip("픽셀 흩어지는 시간 (수명)")]
+    [SerializeField] private float pixelScatterTime = 0.4f;
+    [Tooltip("픽셀 랜덤 속도 변화")]
+    [SerializeField] private float pixelRandomSpeedVariation = 0.3f;
 
     [Header("Debug")]
     [SerializeField] private bool showDebugLogs = false;
@@ -287,33 +309,182 @@ public class SecondaryChargedAttackHammerWithSectorComponent : MonoBehaviour, IS
     }
 
     /// <summary>
-    /// 부채꼴 시각화 (Mesh + LineRenderer)
+    /// 부채꼴 충격파 시각화 (확장 애니메이션 + 픽셀 파티클)
     /// </summary>
     private void VisualizeSector(Vector2 center, Vector2 forwardDir)
     {
-        GameObject visual = new GameObject("SectorVisual");
+        GameObject visual = new GameObject("ShockwaveVisual");
         visual.transform.position = center;
 
+        // 충격파 확장 코루틴 시작
+        StartCoroutine(ShockwaveExpansionCoroutine(visual, center, forwardDir));
+
+        if (showDebugLogs)
+        {
+            Debug.Log($"[{GetAttackName()}] Shockwave visual started at {center}");
+        }
+    }
+
+    /// <summary>
+    /// 충격파 확장 코루틴 - 반지름이 증가하며 호를 그리고 픽셀 파티클 생성
+    /// </summary>
+    private System.Collections.IEnumerator ShockwaveExpansionCoroutine(GameObject visualParent, Vector2 center, Vector2 forwardDir)
+    {
+        // 부채꼴 각도 계산
         float angleRad = Mathf.Atan2(forwardDir.y, forwardDir.x);
         float halfAngleRad = sectorAngle * 0.5f * Mathf.Deg2Rad;
-        int arcSegments = 30;
+        int arcSegments = 40; // 부드러운 호를 위해 세그먼트 증가
 
-        // === 1. Mesh로 부채꼴 내부 채우기 ===
-        MeshFilter meshFilter = visual.AddComponent<MeshFilter>();
-        MeshRenderer meshRenderer = visual.AddComponent<MeshRenderer>();
+        // Mesh 생성 (부채꼴 내부 채우기)
+        MeshFilter meshFilter = visualParent.AddComponent<MeshFilter>();
+        MeshRenderer meshRenderer = visualParent.AddComponent<MeshRenderer>();
 
         Mesh mesh = new Mesh();
         mesh.name = "SectorMesh";
+        meshFilter.mesh = mesh;
 
-        // 버텍스 생성: 중심 + 아크 포인트들
+        Material fillMaterial = new Material(Shader.Find("Sprites/Default"));
+        fillMaterial.color = sectorFillColor;
+        meshRenderer.material = fillMaterial;
+
+        // LineRenderer 생성 (외곽선)
+        LineRenderer lr = visualParent.AddComponent<LineRenderer>();
+        lr.useWorldSpace = true;
+        lr.loop = false;
+        lr.startWidth = shockwaveLineWidth;
+        lr.endWidth = shockwaveLineWidth;
+        lr.startColor = shockwaveColor;
+        lr.endColor = shockwaveColor;
+
+        Material lineMaterial = new Material(Shader.Find("Sprites/Default"));
+        lr.material = lineMaterial;
+
+        // 픽셀 파티클을 즉시 생성 (확장과 동시에 터져나감)
+        SpawnPixelParticles(visualParent, center, forwardDir, angleRad, halfAngleRad, arcSegments);
+
+        // 확장 애니메이션
+        float elapsed = 0f;
+        while (elapsed < shockwaveExpandTime)
+        {
+            elapsed += Time.deltaTime;
+            float t = Mathf.Clamp01(elapsed / shockwaveExpandTime);
+            float curveValue = shockwaveExpandCurve.Evaluate(t);
+            float currentRadius = sectorRadius * curveValue;
+
+            // === Mesh 업데이트 (부채꼴 내부) ===
+            UpdateSectorMesh(mesh, center, angleRad, halfAngleRad, currentRadius, arcSegments);
+
+            // === LineRenderer 업데이트 (외곽선) ===
+            // 부채꼴 외곽선 전체 그리기: 중심 -> 왼쪽 직선 -> 호 -> 오른쪽 직선 -> 중심
+            int totalPoints = 1 + 1 + arcSegments + 1 + 1; // 중심 + 왼쪽끝 + 호 + 오른쪽끝 + 중심
+            lr.positionCount = totalPoints;
+
+            int index = 0;
+
+            // 1. 중심점
+            lr.SetPosition(index++, center);
+
+            // 2. 왼쪽 끝점 (왼쪽 직선)
+            float leftAngle = angleRad - halfAngleRad;
+            Vector3 leftPoint = center + new Vector2(Mathf.Cos(leftAngle), Mathf.Sin(leftAngle)) * currentRadius;
+            lr.SetPosition(index++, leftPoint);
+
+            // 3. 호 (왼쪽에서 오른쪽으로)
+            for (int i = 0; i <= arcSegments; i++)
+            {
+                float arcT = i / (float)arcSegments;
+                float currentAngle = angleRad - halfAngleRad + (sectorAngle * Mathf.Deg2Rad * arcT);
+                Vector3 point = center + new Vector2(Mathf.Cos(currentAngle), Mathf.Sin(currentAngle)) * currentRadius;
+                lr.SetPosition(index++, point);
+            }
+
+            // 4. 중심으로 돌아오기 (오른쪽 직선)
+            lr.SetPosition(index++, center);
+
+            yield return null;
+        }
+
+        // 최종 반지름으로 고정
+        UpdateSectorMesh(mesh, center, angleRad, halfAngleRad, sectorRadius, arcSegments);
+
+        int finalTotalPoints = 1 + 1 + arcSegments + 1 + 1;
+        lr.positionCount = finalTotalPoints;
+
+        int finalIndex = 0;
+        lr.SetPosition(finalIndex++, center);
+
+        float finalLeftAngle = angleRad - halfAngleRad;
+        Vector3 finalLeftPoint = center + new Vector2(Mathf.Cos(finalLeftAngle), Mathf.Sin(finalLeftAngle)) * sectorRadius;
+        lr.SetPosition(finalIndex++, finalLeftPoint);
+
+        for (int i = 0; i <= arcSegments; i++)
+        {
+            float arcT = i / (float)arcSegments;
+            float currentAngle = angleRad - halfAngleRad + (sectorAngle * Mathf.Deg2Rad * arcT);
+            Vector3 point = center + new Vector2(Mathf.Cos(currentAngle), Mathf.Sin(currentAngle)) * sectorRadius;
+            lr.SetPosition(finalIndex++, point);
+        }
+
+        lr.SetPosition(finalIndex++, center);
+
+        // 유지 시간 대기
+        if (sectorHoldTime > 0f)
+        {
+            yield return new WaitForSeconds(sectorHoldTime);
+        }
+
+        // 페이드아웃 애니메이션
+        if (sectorFadeOutTime > 0f)
+        {
+            Color initialLineColor = lr.startColor;
+            Color initialFillColor = meshRenderer.material.color;
+
+            float fadeElapsed = 0f;
+            while (fadeElapsed < sectorFadeOutTime)
+            {
+                fadeElapsed += Time.deltaTime;
+                float fadeT = fadeElapsed / sectorFadeOutTime;
+
+                // LineRenderer 페이드아웃
+                Color lineColor = initialLineColor;
+                lineColor.a = Mathf.Lerp(initialLineColor.a, 0f, fadeT);
+                lr.startColor = lineColor;
+                lr.endColor = lineColor;
+
+                // Mesh 페이드아웃
+                Color fillColor = initialFillColor;
+                fillColor.a = Mathf.Lerp(initialFillColor.a, 0f, fadeT);
+                meshRenderer.material.color = fillColor;
+
+                yield return null;
+            }
+        }
+
+        // 부채꼴 파괴 (픽셀은 계속 유지)
+        Destroy(lr);
+        Destroy(meshRenderer);
+        Destroy(meshFilter);
+
+        // 전체 시각 효과 파괴 (픽셀 애니메이션이 끝날 때까지 대기)
+        float totalDuration = pixelScatterTime;
+        Destroy(visualParent, totalDuration);
+    }
+
+    /// <summary>
+    /// 부채꼴 Mesh 업데이트 - 현재 반지름에 맞춰 재생성
+    /// </summary>
+    private void UpdateSectorMesh(Mesh mesh, Vector2 center, float angleRad, float halfAngleRad, float currentRadius, int arcSegments)
+    {
+        // 버텍스 생성: 중심 + 호 포인트들 (로컬 좌표계 사용)
         Vector3[] vertices = new Vector3[arcSegments + 2];
-        vertices[0] = Vector3.zero; // 중심점 (로컬 좌표)
+        vertices[0] = Vector3.zero; // 로컬 중심점 (부모가 center에 위치함)
 
         for (int i = 0; i <= arcSegments; i++)
         {
             float t = i / (float)arcSegments;
             float currentAngle = angleRad - halfAngleRad + (sectorAngle * Mathf.Deg2Rad * t);
-            Vector2 point = new Vector2(Mathf.Cos(currentAngle), Mathf.Sin(currentAngle)) * sectorRadius;
+            // 로컬 좌표로 변환 (center 기준)
+            Vector2 point = new Vector2(Mathf.Cos(currentAngle), Mathf.Sin(currentAngle)) * currentRadius;
             vertices[i + 1] = point;
         }
 
@@ -326,62 +497,136 @@ public class SecondaryChargedAttackHammerWithSectorComponent : MonoBehaviour, IS
             triangles[i * 3 + 2] = i + 2;
         }
 
+        mesh.Clear();
         mesh.vertices = vertices;
         mesh.triangles = triangles;
         mesh.RecalculateNormals();
+    }
 
-        meshFilter.mesh = mesh;
+    /// <summary>
+    /// 픽셀 파티클 생성 - 부채꼴 둘레 전체를 따라 정사각형 픽셀들이 흩어짐
+    /// </summary>
+    private void SpawnPixelParticles(GameObject parent, Vector2 center, Vector2 forwardDir, float angleRad, float halfAngleRad, int arcSegments)
+    {
+        // 부채꼴 둘레 길이 계산
+        float arcLength = sectorRadius * sectorAngle * Mathf.Deg2Rad;
+        float totalPerimeter = 2f * sectorRadius + arcLength; // 왼쪽 직선 + 호 + 오른쪽 직선
 
-        // Material 설정 (내부 채우기)
-        Material fillMaterial = new Material(Shader.Find("Sprites/Default"));
-        fillMaterial.color = sectorColor;
-        meshRenderer.material = fillMaterial;
-
-        // === 2. LineRenderer로 외곽선 그리기 ===
-        LineRenderer lr = visual.AddComponent<LineRenderer>();
-        lr.useWorldSpace = false; // 로컬 좌표 사용
-        lr.loop = false;
-        lr.startWidth = lineWidth;
-        lr.endWidth = lineWidth;
-        lr.startColor = new Color(sectorColor.r, sectorColor.g, sectorColor.b, 1f); // 외곽선은 불투명하게
-        lr.endColor = new Color(sectorColor.r, sectorColor.g, sectorColor.b, 1f);
-
-        // Material 설정
-        Material lineMaterial = new Material(Shader.Find("Sprites/Default"));
-        lr.material = lineMaterial;
-
-        // 외곽선: 중심 -> 좌측 끝 -> 아크 -> 우측 끝 -> 중심
-        int totalPoints = 1 + arcSegments + 1 + 1;
-        lr.positionCount = totalPoints;
-
-        int index = 0;
-        // 중심점
-        lr.SetPosition(index++, Vector3.zero);
-
-        // 좌측 끝
-        float leftAngle = angleRad - halfAngleRad;
-        Vector3 leftPoint = new Vector3(Mathf.Cos(leftAngle), Mathf.Sin(leftAngle), 0) * sectorRadius;
-        lr.SetPosition(index++, leftPoint);
-
-        // 아크
-        for (int i = 0; i <= arcSegments; i++)
+        // 둘레를 따라 균등하게 픽셀 배치
+        for (int i = 0; i < pixelCount; i++)
         {
-            float t = i / (float)arcSegments;
-            float currentAngle = angleRad - halfAngleRad + (sectorAngle * Mathf.Deg2Rad * t);
-            Vector3 point = new Vector3(Mathf.Cos(currentAngle), Mathf.Sin(currentAngle), 0) * sectorRadius;
-            lr.SetPosition(index++, point);
+            // 둘레 위의 랜덤한 위치 선택 (0~1)
+            float perimeterT = Random.Range(0f, 1f);
+            float distance = perimeterT * totalPerimeter;
+
+            Vector2 pixelPosition;
+            Vector2 normalDir;
+
+            // 왼쪽 직선 위
+            if (distance < sectorRadius)
+            {
+                float lineT = distance / sectorRadius;
+                float leftAngle = angleRad - halfAngleRad;
+                pixelPosition = center + new Vector2(Mathf.Cos(leftAngle), Mathf.Sin(leftAngle)) * (sectorRadius * lineT);
+                normalDir = new Vector2(Mathf.Cos(leftAngle), Mathf.Sin(leftAngle));
+            }
+            // 호 위
+            else if (distance < sectorRadius + arcLength)
+            {
+                float arcDist = distance - sectorRadius;
+                float arcT = arcDist / arcLength;
+                float currentAngle = angleRad - halfAngleRad + (sectorAngle * Mathf.Deg2Rad * arcT);
+                pixelPosition = center + new Vector2(Mathf.Cos(currentAngle), Mathf.Sin(currentAngle)) * sectorRadius;
+                normalDir = new Vector2(Mathf.Cos(currentAngle), Mathf.Sin(currentAngle));
+            }
+            // 오른쪽 직선 위
+            else
+            {
+                float lineDist = distance - (sectorRadius + arcLength);
+                float lineT = 1f - (lineDist / sectorRadius);
+                float rightAngle = angleRad + halfAngleRad;
+                pixelPosition = center + new Vector2(Mathf.Cos(rightAngle), Mathf.Sin(rightAngle)) * (sectorRadius * lineT);
+                normalDir = new Vector2(Mathf.Cos(rightAngle), Mathf.Sin(rightAngle));
+            }
+
+            // 픽셀 GameObject 생성
+            GameObject pixel = new GameObject($"Pixel_{i}");
+            pixel.transform.SetParent(parent.transform);
+            pixel.transform.position = pixelPosition;
+
+            // SpriteRenderer로 정사각형 표현
+            SpriteRenderer sr = pixel.AddComponent<SpriteRenderer>();
+            sr.sprite = CreateSquareSprite();
+            sr.color = shockwaveColor;
+            sr.sortingOrder = 10;
+
+            // 픽셀 크기 설정 (크고 작은 변화)
+            float size = pixelSize * Random.Range(0.5f, 2.0f);
+            pixel.transform.localScale = Vector3.one * size;
+
+            // 흩어지는 방향 계산 (법선 방향 + 약간의 랜덤)
+            Vector2 randomOffset = Random.insideUnitCircle * 0.3f;
+            Vector2 scatterDir = (normalDir + randomOffset).normalized;
+
+            // 픽셀 애니메이션 시작
+            StartCoroutine(AnimatePixelParticle(pixel, pixelPosition, scatterDir));
+        }
+    }
+
+    /// <summary>
+    /// 정사각형 스프라이트 생성
+    /// </summary>
+    private Sprite CreateSquareSprite()
+    {
+        // 작은 흰색 정사각형 텍스처 생성
+        int size = 8;
+        Texture2D texture = new Texture2D(size, size);
+        Color[] pixels = new Color[size * size];
+        for (int i = 0; i < pixels.Length; i++)
+        {
+            pixels[i] = Color.white;
+        }
+        texture.SetPixels(pixels);
+        texture.filterMode = FilterMode.Point; // 픽셀 아트 스타일
+        texture.Apply();
+
+        return Sprite.Create(texture, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), size);
+    }
+
+    /// <summary>
+    /// 픽셀 파티클 애니메이션 - 흩어지며 페이드아웃
+    /// </summary>
+    private System.Collections.IEnumerator AnimatePixelParticle(GameObject pixel, Vector2 startPos, Vector2 direction)
+    {
+        SpriteRenderer sr = pixel.GetComponent<SpriteRenderer>();
+        if (sr == null) yield break;
+
+        float elapsed = 0f;
+        float distance = pixelScatterDistance * Random.Range(1f - pixelRandomSpeedVariation, 1f + pixelRandomSpeedVariation);
+
+        while (elapsed < pixelScatterTime)
+        {
+            elapsed += Time.deltaTime;
+            float t = elapsed / pixelScatterTime;
+
+            // 위치 업데이트 (감속 효과)
+            float moveT = 1f - (1f - t) * (1f - t); // ease-out
+            pixel.transform.position = startPos + direction * distance * moveT;
+
+            // 페이드아웃
+            Color col = sr.color;
+            col.a = 1f - t;
+            sr.color = col;
+
+            // 크기 감소
+            float scale = Mathf.Lerp(1f, 0.5f, t);
+            pixel.transform.localScale = Vector3.one * pixelSize * scale;
+
+            yield return null;
         }
 
-        // 중심으로 돌아오기
-        lr.SetPosition(index++, Vector3.zero);
-
-        // === 3. 자동 파괴 ===
-        Destroy(visual, visualDuration);
-
-        if (showDebugLogs)
-        {
-            Debug.Log($"[{GetAttackName()}] Sector visual created at {center}, will destroy in {visualDuration}s");
-        }
+        // 애니메이션 종료 후 파괴
+        Destroy(pixel);
     }
 
     private void IgnorePlayerHammerCollision(Transform ownerTransform, GameObject hammer)
