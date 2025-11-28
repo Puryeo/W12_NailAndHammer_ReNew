@@ -5518,7 +5518,7 @@ MonoBehaviour:
   fadeOutDuration: 0.5
   hammerPrefab: {fileID: 2683279600985944763, guid: 527a06d60c4d0aa4388cb9094414c918, type: 3}
   hammerLocalOffset: {x: 0, y: 0}
-  damage: 10
+  damage: 30
   knockbackForce: 75
   swingAngle: 270
   swingDuration: 0.8
@@ -5536,19 +5536,19 @@ MonoBehaviour:
       inWeight: 0
       outWeight: 0
     - serializedVersion: 3
-      time: 0.6433058
-      value: 0.25060803
-      inSlope: 1.3340987
-      outSlope: 1.3340987
+      time: 0.4366447
+      value: 0.1923117
+      inSlope: 1.314456
+      outSlope: 1.314456
       tangentMode: 0
       weightedMode: 0
       inWeight: 0.33333334
-      outWeight: 0.37003213
+      outWeight: 0.33333334
     - serializedVersion: 3
-      time: 0.8699306
-      value: 0.92110807
-      inSlope: 1.0065882
-      outSlope: 1.0065882
+      time: 0.54110414
+      value: 0.8182931
+      inSlope: 1.546717
+      outSlope: 1.546717
       tangentMode: 0
       weightedMode: 0
       inWeight: 0.33333334
@@ -5565,11 +5565,12 @@ MonoBehaviour:
     m_PreInfinity: 2
     m_PostInfinity: 2
     m_RotationOrder: 4
+  usePlayerSwingCurve: 0
   enableHammerTrail: 1
   trailTime: 0.6
   trailStartWidth: 8
   trailEndWidth: 4
-  trailColor: {r: 0.7, g: 0.2, b: 1, a: 1}
+  trailColor: {r: 0.62254906, g: 0, b: 1, a: 0.7058824}
   trailMinVertexDistance: 0.005
   trailMaterial: {fileID: 0}
   trailAttachPointName: Head

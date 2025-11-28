@@ -38,6 +38,10 @@ public class GuardianSkillController : MonoBehaviour, ISecondaryChargedAttack
     [SerializeField] private float executeHealAmount = 50f;
     [SerializeField] private AnimationCurve swingCurve = AnimationCurve.EaseInOut(0f, 0f, 1f, 1f);
 
+    [Header("3.1 Curve Source")]
+    [Tooltip("true면 PlayerCombat의 hammerSwingCurve를 사용, false면 이 컴포넌트의 swingCurve를 사용")]
+    [SerializeField] private bool usePlayerSwingCurve = false;
+
     [Header("4. Visual: Hammer Trail (TrailRenderer)")]
     [Tooltip("해머 궤적을 TrailRenderer로 표시")]
     [SerializeField] private bool enableHammerTrail = true;
@@ -105,10 +109,8 @@ public class GuardianSkillController : MonoBehaviour, ISecondaryChargedAttack
         if (hammerPrefab == null)
         {
             Debug.LogWarning("[GuardianSkillController] hammerPrefab이 할당되지 않았습니다. 수호신은 소환되지만 휘두를 수 없습니다.");
-            // 수호신만 소환하는 동작을 원하면 여기서 계속 진행하거나 return 처리 선택 가능
         }
 
-        // owner가 null이어도 ownerTransform으로 동작(테스트용)
         StartCoroutine(SkillSequence(owner, ownerTransform ?? transform));
     }
 
@@ -124,12 +126,10 @@ public class GuardianSkillController : MonoBehaviour, ISecondaryChargedAttack
         isSkillActive = true;
         if (ownerTransform == null) yield break;
 
-        // 카메라 처리: orthographic / perspective 고려
         Camera cam = Camera.main;
         bool camIsOrtho = cam != null && cam.orthographic;
         float originalCamValue = cam != null ? (camIsOrtho ? cam.orthographicSize : cam.fieldOfView) : 0f;
 
-        // Phase 1: 카메라 줌 아웃
         float elapsed = 0f;
         while (elapsed < Mathf.Max(0.0001f, zoomDuration))
         {
@@ -149,9 +149,6 @@ public class GuardianSkillController : MonoBehaviour, ISecondaryChargedAttack
             else cam.fieldOfView = targetCamSize;
         }
 
-        // ------------------------------------------------
-        // Phase 2: 수호신 소환 (정지)
-        // ------------------------------------------------
         Vector3 guardianWorldPos = ownerTransform.TransformPoint(new Vector3(spawnOffset.x, spawnOffset.y, 0f));
         GameObject guardian = Object.Instantiate(guardianPrefab, guardianWorldPos, ownerTransform.rotation);
         if (guardian == null)
@@ -161,26 +158,14 @@ public class GuardianSkillController : MonoBehaviour, ISecondaryChargedAttack
             isSkillActive = false;
             yield break;
         }
-        // 로컬 회전 조절(옵션)
         guardian.transform.rotation = ownerTransform.rotation * Quaternion.Euler(0f, 0f, guardianLocalZRotation);
 
-        // ------------------------------------------------
-        // Phase 3: 해머 생성 및 휘두르기 (Hammer prefab 필요)
-        // - 해머는 guardian을 부모로 삼아 guardian 기준 localOffset에서 휘두름
-        // - HammerSwingController 내부에서 ownerCombat(플레이어)을 사용하여 처형 보상 처리 가능
-        // 
-        // 변경 요점:
-        // - 실행 시점의 마우스 월드 좌표를 기록하고, Initialize 이후 리플렉션으로 HammerSwingController.baseLocalAngle을 고정(기억)합니다.
-        // - 해머가 플레이어의 실시간 자식이 되지 않도록 '고정 Anchor'를 생성하여 그 Anchor를 ownerTransform으로 넘깁니다.
-        // ------------------------------------------------
         GameObject hammer = null;
         GameObject hammerTrailObj = null;
-        GameObject aimAnchorGO = null; // 실행 시점 고정 기준 Transform
+        GameObject aimAnchorGO = null;
 
         if (hammerPrefab != null)
         {
-            // 해머의 실제 월드 스폰 위치:
-            // 플레이어(ownerTransform) 기준으로 spawnOffset + hammerLocalOffset 합쳐서 계산
             Vector3 hammerWorldPos;
             if (ownerTransform != null)
             {
@@ -192,7 +177,6 @@ public class GuardianSkillController : MonoBehaviour, ISecondaryChargedAttack
                 hammerWorldPos = guardian.transform.TransformPoint(new Vector3(hammerLocalOffset.x, hammerLocalOffset.y, 0f));
             }
 
-            // 실행 시점 마우스 위치 기록 (기존 동작 보존)
             Vector3 initialMouseWorld = Vector3.zero;
             if (Camera.main != null)
             {
@@ -202,31 +186,46 @@ public class GuardianSkillController : MonoBehaviour, ISecondaryChargedAttack
                 initialMouseWorld.z = (ownerTransform != null ? ownerTransform.position.z : guardian.transform.position.z);
             }
 
-            // Anchor 생성: 플레이어의 현재 월드 위치/회전을 복제한 고정 Transform
             if (ownerTransform != null)
             {
                 aimAnchorGO = new GameObject("GuardianHammerAnchor");
                 aimAnchorGO.transform.position = ownerTransform.position;
                 aimAnchorGO.transform.rotation = ownerTransform.rotation;
-                // 숨김 옵션(선택): aimAnchorGO.hideFlags = HideFlags.DontSave;
             }
 
-            // Instantiate 시 rotation은 identity로 유지
             hammer = Object.Instantiate(hammerPrefab, hammerWorldPos, Quaternion.identity);
 
             var hc = hammer.GetComponent<HammerSwingController>();
             if (hc != null)
             {
-                // localOffset을 Anchor 로컬 좌표로 전달 (spawnOffset + hammerLocalOffset)
                 Vector2 localOffsetForAnchor = hammerLocalOffset;
                 if (ownerTransform != null)
                 {
                     localOffsetForAnchor = new Vector2(spawnOffset.x + hammerLocalOffset.x, spawnOffset.y + hammerLocalOffset.y);
                 }
 
-                // swingAngle / speedCurve 결정 ( PlayerCombat 값 우선, 실패 시 Guardian 값 사용 )
                 float swingAngleToUse = this.swingAngle;
                 AnimationCurve speedCurveToUse = this.swingCurve;
+
+                // 변경: 애니메이션 커브만 분리 제어
+                if (usePlayerSwingCurve && owner != null)
+                {
+                    try
+                    {
+                        FieldInfo fiCurve = owner.GetType().GetField("hammerSwingCurve", BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public);
+                        if (fiCurve != null)
+                        {
+                            object cv = fiCurve.GetValue(owner);
+                            if (cv is AnimationCurve ac) speedCurveToUse = ac;
+                        }
+                    }
+                    catch
+                    {
+                        // 실패 시 Guardian의 swingCurve 사용
+                    }
+                }
+
+                // swingAngle은 기존처럼 플레이어 값을 우선으로 가져오려면 그대로 유지(선택사항)
                 if (owner != null)
                 {
                     try
@@ -237,21 +236,10 @@ public class GuardianSkillController : MonoBehaviour, ISecondaryChargedAttack
                             object val = fi.GetValue(owner);
                             if (val is float f) swingAngleToUse = f;
                         }
-
-                        FieldInfo fiCurve = owner.GetType().GetField("hammerSwingCurve", BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public);
-                        if (fiCurve != null)
-                        {
-                            object cv = fiCurve.GetValue(owner);
-                            if (cv is AnimationCurve ac) speedCurveToUse = ac;
-                        }
                     }
-                    catch
-                    {
-                        // 실패 시 Guardian의 설정 사용
-                    }
+                    catch { }
                 }
 
-                // Initialize 호출: ownerTransform으로 '고정 Anchor' 전달(없으면 원 ownerTransform 전달)
                 Transform anchorTransformToUse = aimAnchorGO != null ? aimAnchorGO.transform : ownerTransform;
                 hc.Initialize(
                     owner: owner,
@@ -266,12 +254,10 @@ public class GuardianSkillController : MonoBehaviour, ISecondaryChargedAttack
                     enableExecution: true
                 );
 
-                // Initialize 후 baseLocalAngle 고정(초기 마우스 위치 기준) — 기존 구현 유지
+                // baseLocalAngle 고정 로직 유지...
                 try
                 {
                     System.Type hcType = hc.GetType();
-
-                    // invertSwingDirection 읽기 (private field)
                     bool invert = false;
                     FieldInfo fiInvert = hcType.GetField("invertSwingDirection", BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public);
                     if (fiInvert != null)
@@ -302,7 +288,6 @@ public class GuardianSkillController : MonoBehaviour, ISecondaryChargedAttack
                     Debug.LogWarning($"[GuardianSkillController] baseLocalAngle 고정 실패: {ex.Message}");
                 }
 
-                // 플레이어와 해머 콜라이더 충돌 무시
                 var hammerCols = hammer.GetComponentsInChildren<Collider2D>();
                 var playerCols = ownerTransform.GetComponentsInChildren<Collider2D>();
                 foreach (var hcCol in hammerCols)
@@ -314,7 +299,6 @@ public class GuardianSkillController : MonoBehaviour, ISecondaryChargedAttack
                 Debug.LogWarning("[GuardianSkillController] hammerPrefab에 HammerSwingController가 없습니다.");
             }
 
-            // === TrailRenderer 생성 및 관리 ===
             if (enableHammerTrail && hammer != null)
             {
                 hammerTrailObj = new GameObject("HammerTrail");
