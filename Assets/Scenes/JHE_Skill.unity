@@ -5563,6 +5563,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   healthSystem: {fileID: 956203893}
+  deckManager: {fileID: 0}
   maxAmmo: 2
   currentAmmo: 0
   woodDamage: 10
@@ -5759,7 +5760,7 @@ MonoBehaviour:
   impactRadius: 2
   damage: 40
   knockbackForce: 15
-  spinePrefab: {fileID: 129415160358822721, guid: 4e8ec492ba45ff349839ecb5e92df983, type: 3}
+  spinePrefab: {fileID: 1866082589576011882, guid: c671e891270c4b84c97361f6b45ab6c1, type: 3}
   spineCount: 6
   spineRadius: 2.5
 --- !u!114 &956203901
@@ -5836,7 +5837,7 @@ MonoBehaviour:
   fadeOutDuration: 0.5
   hammerPrefab: {fileID: 2683279600985944763, guid: 527a06d60c4d0aa4388cb9094414c918, type: 3}
   hammerLocalOffset: {x: 0, y: 0}
-  damage: 10
+  damage: 30
   knockbackForce: 75
   swingAngle: 270
   swingDuration: 0.8
@@ -5854,19 +5855,19 @@ MonoBehaviour:
       inWeight: 0
       outWeight: 0
     - serializedVersion: 3
-      time: 0.6433058
-      value: 0.25060803
-      inSlope: 1.3340987
-      outSlope: 1.3340987
+      time: 0.4366447
+      value: 0.1923117
+      inSlope: 1.314456
+      outSlope: 1.314456
       tangentMode: 0
       weightedMode: 0
       inWeight: 0.33333334
-      outWeight: 0.37003213
+      outWeight: 0.33333334
     - serializedVersion: 3
-      time: 0.8699306
-      value: 0.92110807
-      inSlope: 1.0065882
-      outSlope: 1.0065882
+      time: 0.54110414
+      value: 0.8182931
+      inSlope: 1.546717
+      outSlope: 1.546717
       tangentMode: 0
       weightedMode: 0
       inWeight: 0.33333334
@@ -5883,6 +5884,16 @@ MonoBehaviour:
     m_PreInfinity: 2
     m_PostInfinity: 2
     m_RotationOrder: 4
+  usePlayerSwingCurve: 0
+  enableHammerTrail: 1
+  trailTime: 0.6
+  trailStartWidth: 8
+  trailEndWidth: 4
+  trailColor: {r: 0.62254906, g: 0, b: 1, a: 0.7058824}
+  trailMinVertexDistance: 0.005
+  trailMaterial: {fileID: 0}
+  trailAttachPointName: Head
+  trailLocalOffset: {x: 0, y: 0, z: 0}
 --- !u!1 &960132361
 GameObject:
   m_ObjectHideFlags: 0
@@ -12506,6 +12517,65 @@ SpriteRenderer:
   m_WasSpriteAssigned: 1
   m_MaskInteraction: 0
   m_SpriteSortPoint: 0
+--- !u!1 &1901588644
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1901588646}
+  - component: {fileID: 1901588645}
+  m_Layer: 0
+  m_Name: DeckManager
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &1901588645
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1901588644}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 3bc458dfcecc0704a89b4a72311957d6, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  playerCombat: {fileID: 0}
+  OnDeckChanged:
+    m_PersistentCalls:
+      m_Calls: []
+  usageMode: 2
+  useRandomGeneration: 0
+  randomDeckSize: 10
+  initialDeck: []
+  readySkillCardImage: {fileID: 0}
+  nextSkillCardImage: {fileID: 0}
+  emptyCardSprite: {fileID: 0}
+  autoRecycleWhenEmpty: 1
+  deck: []
+  hand: []
+  discardPile: []
+--- !u!4 &1901588646
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1901588644}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1001 &1902378193
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -14289,3 +14359,4 @@ SceneRoots:
   - {fileID: 1562331730}
   - {fileID: 912800143}
   - {fileID: 2043621761}
+  - {fileID: 1901588646}

@@ -6820,7 +6820,7 @@ MonoBehaviour:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 956203889}
-  m_Enabled: 0
+  m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: c74dbdd46c356e548898a4f6eb220e39, type: 3}
   m_Name: 
@@ -6844,7 +6844,7 @@ MonoBehaviour:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 956203889}
-  m_Enabled: 0
+  m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: a1932cdfc7ae4024d9ee08653282feab, type: 3}
   m_Name: 
@@ -6863,7 +6863,7 @@ MonoBehaviour:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 956203889}
-  m_Enabled: 0
+  m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 009c27cc780de8e41bc865f0e0d8c2bc, type: 3}
   m_Name: 
@@ -6879,7 +6879,7 @@ MonoBehaviour:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 956203889}
-  m_Enabled: 0
+  m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 755c9805cc61a2947aecaf702e0c447c, type: 3}
   m_Name: 
@@ -6931,7 +6931,7 @@ MonoBehaviour:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 956203889}
-  m_Enabled: 0
+  m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 0b6c64ff7d40c0a43b6f1df65ae90136, type: 3}
   m_Name: 
@@ -6952,7 +6952,7 @@ MonoBehaviour:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 956203889}
-  m_Enabled: 0
+  m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: e6f0a289d33ee534ab8df9a23a05153f, type: 3}
   m_Name: 
@@ -6996,6 +6996,16 @@ MonoBehaviour:
     m_PreInfinity: 2
     m_PostInfinity: 2
     m_RotationOrder: 4
+  usePlayerSwingCurve: 0
+  enableHammerTrail: 1
+  trailTime: 0.6
+  trailStartWidth: 0.14
+  trailEndWidth: 0
+  trailColor: {r: 0.7, g: 0.2, b: 1, a: 1}
+  trailMinVertexDistance: 0.05
+  trailMaterial: {fileID: 0}
+  trailAttachPointName: 
+  trailLocalOffset: {x: 0.5, y: 0, z: 0}
 --- !u!114 &956203903
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -7003,7 +7013,7 @@ MonoBehaviour:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 956203889}
-  m_Enabled: 0
+  m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: c28aefe57fb92aa4595a5ef675446fe7, type: 3}
   m_Name: 
@@ -7062,19 +7072,21 @@ MonoBehaviour:
   m_GameObject: {fileID: 956203889}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 98216977888caa44c9c6fa3cd65a16a8, type: 3}
+  m_Script: {fileID: 11500000, guid: b0a5523fc06090749a660b3b2250bd37, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  splashHammerPrefab: {fileID: 499222343195171404, guid: add965516ed3bba4fa0410cbd08d398f, type: 3}
+  spawnOffset: {x: 0.5, y: 0.5}
+  smashDuration: 0.2
+  impactRadius: 2
+  damage: 40
+  knockbackForce: 15
   projectilePrefab: {fileID: 496497374018621148, guid: 397fe2f896ac5644d972a90bc2b09f95, type: 3}
   projectileSpeed: 10
   projectileLifetime: 2
-  damageToNormal: 50
-  damageToGroggy: 999
-  detectionRadius: 1
-  enemyLayer:
-    serializedVersion: 2
-    m_Bits: 256
-  showDebugLogs: 1
+  projectileDamageToNormal: 999
+  projectileDamageToGroggy: 999
+  showDebugLogs: 0
 --- !u!1 &960132361
 GameObject:
   m_ObjectHideFlags: 0

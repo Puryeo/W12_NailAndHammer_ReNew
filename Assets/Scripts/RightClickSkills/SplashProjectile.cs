@@ -5,18 +5,17 @@ using System.Collections.Generic;
 /// Splash Projectile (스플래쉬 투사체)
 /// - 직선으로 날아가며 적과 충돌
 /// - 일반 적 → 그로기 상태로 전환
-/// - 그로기 적 → 죽음 상태로 전환 (처형, 추가 투사체 미발생)
+/// - 그로기 적 → 즉시 처형 (ForceDieWithFade 호출, 추가 투사체 미발생)
 /// </summary>
 [RequireComponent(typeof(Rigidbody2D))]
 [RequireComponent(typeof(Collider2D))]
 public class SplashProjectile : MonoBehaviour
 {
     private Vector2 direction;
-    public float speed;
-    public float lifetime;
+    private float speed;
+    private float lifetime;
     private float damageToNormal;
-    private float damageToGroggy;
-    private bool showDebugLogs;
+    [SerializeField] private bool showDebugLogs;
 
     private Rigidbody2D rb;
     private float aliveTime = 0f;
@@ -32,14 +31,13 @@ public class SplashProjectile : MonoBehaviour
         float speed,
         float lifetime,
         float damageToNormal,
-        float damageToGroggy,
+        float damageToGroggy, // 사용하지 않음 (호환성 유지)
         bool showDebugLogs)
     {
         this.direction = direction.normalized;
         this.speed = speed;
         this.lifetime = lifetime;
         this.damageToNormal = damageToNormal;
-        this.damageToGroggy = damageToGroggy;
         this.showDebugLogs = showDebugLogs;
 
         // Rigidbody2D 설정
@@ -128,12 +126,13 @@ public class SplashProjectile : MonoBehaviour
 
         if (isGroggy)
         {
-            // 그로기 적 → 처형 (죽음 상태로 전환)
+            // 그로기 적 → 처형 (SpineSkill 방식 그대로)
             if (showDebugLogs)
                 Debug.Log($"[SplashProjectile] 그로기 적 처형: {enemyCtrl.name}");
 
-            // 높은 데미지로 즉사
-            enemyHealth.TakeDamage(damageToGroggy);
+            // 말뚝 회수 및 처형 마킹
+            enemyCtrl.ConsumeStacks(startReturn: false, awardImmediatelyToPlayer: false, awardTarget: null);
+            enemyCtrl.MarkExecuted();
 
             // 처형 이펙트 재생
             var he = enemyHealth.GetComponent<HitEffect>();
@@ -150,14 +149,11 @@ public class SplashProjectile : MonoBehaviour
                 collision.transform.position
             );
 
-            // 즉시 사망 처리
+            // 즉시 사망 처리 (ForceDieWithFade 호출 - 999 데미지 대신)
             enemyHealth.ForceDieWithFade(1f);
 
-            // 스택 소모 (즉시 회수 모드)
-            enemyCtrl.ConsumeStacks(startReturn: false, awardImmediatelyToPlayer: false, awardTarget: null);
-
-            // 처형 플래그 설정
-            enemyCtrl.MarkExecuted();
+            if (showDebugLogs)
+                Debug.Log($"[SplashProjectile] 처형 완료 - ForceDieWithFade 호출");
         }
         else
         {
