@@ -1,4 +1,4 @@
-﻿using UnityEngine;
+using UnityEngine;
 using System.Collections.Generic;
 
 /// <summary>
@@ -550,7 +550,11 @@ public class PlayerCombat : MonoBehaviour
     /// </summary>
     public void OnSecondaryDown()
     {
-        if (hammerTimer > 0) return;
+        if (hammerTimer > 0)
+        {
+            Debug.Log("[Combat] 망치 쿨타임 중 - 우클릭 처형 불가");
+            return;
+        }
 
         Collider2D targetEnemy = CheckForExecutionTarget();
 
@@ -602,7 +606,6 @@ public class PlayerCombat : MonoBehaviour
     /// </summary>
     private void TryFireSecondaryChargedAttack()
     {
-        if (hammerTimer > 0) return;
 
         // DeckManager 체크
         if (deckManager == null)
@@ -760,8 +763,14 @@ public class PlayerCombat : MonoBehaviour
         Gizmos.color = Color.red;
         Gizmos.DrawWireSphere(transform.position, executionRange);
 
-        Vector3 rightDir = Quaternion.Euler(0, 0, executionAngle * 0.5f) * Vector3.right;
-        Vector3 leftDir = Quaternion.Euler(0, 0, -executionAngle * 0.5f) * Vector3.right;
+        Vector3 facingDir = transform.right;
+
+        // 만약 기본 스프라이트가 위쪽(12시)을 보고 있다면 transform.up을 써야 합니다.
+        // Vector3 facingDir = transform.up; 
+
+        // 기준 방향(facingDir)을 중심으로 부채꼴 각도만큼 회전
+        Vector3 rightDir = Quaternion.Euler(0, 0, executionAngle * 0.5f) * facingDir;
+        Vector3 leftDir = Quaternion.Euler(0, 0, -executionAngle * 0.5f) * facingDir;
 
         Gizmos.color = new Color(1, 0, 0, 0.3f);
         Gizmos.DrawRay(transform.position, rightDir * executionRange);
