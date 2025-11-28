@@ -182,7 +182,7 @@ public class SplashHammerController : MonoBehaviour
             ownerCombat.OnExecutionSuccess(healAmount: 30f, ammoReward: 0);
         }
 
-        // 투사체 4방향 발사 (처형된 적 콜라이더 무시)
+        // 투사체 8방향 발사 (처형된 적 콜라이더 무시)
         SpawnProjectiles(hitPos, enemyCollider);
 
         if (showDebugLogs)
@@ -225,7 +225,7 @@ public class SplashHammerController : MonoBehaviour
     }
 
     /// <summary>
-    /// 투사체 4방향 발사 (위, 아래, 왼쪽, 오른쪽)
+    /// 투사체 8방향 발사 (상하좌우 + 대각선)
     /// 처형된 적의 콜라이더와 충돌 무시
     /// </summary>
     private void SpawnProjectiles(Vector3 spawnPosition, Collider2D ignoreCollider)
@@ -236,13 +236,17 @@ public class SplashHammerController : MonoBehaviour
             return;
         }
 
-        // 2D 4방향 벡터
+        // 2D 8방향 벡터
         Vector2[] directions = new Vector2[]
         {
-            Vector2.up,       // 위
-            Vector2.down,     // 아래
-            Vector2.left,     // 왼쪽
-            Vector2.right     // 오른쪽
+            Vector2.up,                          // 위 (0도)
+            new Vector2(1, 1).normalized,        // 우상 (45도)
+            Vector2.right,                       // 오른쪽 (90도)
+            new Vector2(1, -1).normalized,       // 우하 (135도)
+            Vector2.down,                        // 아래 (180도)
+            new Vector2(-1, -1).normalized,      // 좌하 (225도)
+            Vector2.left,                        // 왼쪽 (270도)
+            new Vector2(-1, 1).normalized        // 좌상 (315도)
         };
 
         foreach (var direction in directions)
@@ -284,7 +288,7 @@ public class SplashHammerController : MonoBehaviour
         }
 
         if (showDebugLogs)
-            Debug.Log($"[SplashHammer] 4방향 투사체 발사 완료 (위치: {spawnPosition})");
+            Debug.Log($"[SplashHammer] 8방향 투사체 발사 완료 (위치: {spawnPosition})");
     }
 
     private void OnDrawGizmos()
