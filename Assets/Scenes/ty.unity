@@ -5335,7 +5335,7 @@ MonoBehaviour:
   hammerSwingAngle: 210
   hammerSwingDuration: 0.4
   hammerDamage: 10
-  hammerCooldown: 1.5
+  hammerCooldown: 0.3
   hammerKnockbackForce: 50
   hammerExecuteHeal: 20
   hammerSwingCurve:
