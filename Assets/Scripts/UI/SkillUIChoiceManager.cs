@@ -200,17 +200,9 @@ public class SkillUIChoiceManager : MonoBehaviour
             return;
         }
 
-        // 카드 생성
-        Card newCard = new Card(
-            selectedSkill.skillType,
-            selectedSkill.skillName,
-            selectedSkill.skillIcon
-        );
-
-        // 덱에 추가 - DeckManager의 initialDeck에 직접 추가하는 대신
-        // DeckManager가 제공하는 메서드를 사용하거나, 직접 deck에 추가
-        // 여기서는 ReturnCardToDeck 메서드를 활용
-        deckManager.ReturnCardToDeck(newCard);
+        // DeckManager에 새 스킬 추가
+        // - 덱[2]에 삽입됨 (UI에 보이는 덱[0], 덱[1]은 유지)
+        deckManager.AddNewSkill(selectedSkill);
 
         Debug.Log($"[SkillUIChoiceManager] 스킬 선택 완료: {selectedSkill.skillName} → 덱에 추가됨");
 
@@ -253,15 +245,11 @@ public class SkillUIChoiceManager : MonoBehaviour
     {
         Debug.Log("[SkillUIChoiceManager] 모든 스킬 선택 완료!");
 
-        // 덱 섞기 (선택한 카드들이 랜덤하게 분포하도록)
-        if (deckManager != null)
-        {
-            deckManager.ShuffleDeck();
-        }
+        // 새 DeckManager에서는 섞지 않음 (게임 시작 시 한 번만 섞음)
+        // 선택한 스킬들은 이미 덱[2]에 삽입되어 고정된 순서로 순환함
 
         // 여기서 게임 시작 또는 다음 단계로 진행
-        // 예: 초기 핸드 드로우
-        // deckManager.DrawCards(3);
+        // 예: 보상 지급, 스탯 업그레이드 등
     }
 
     // ==================== Public API ====================
