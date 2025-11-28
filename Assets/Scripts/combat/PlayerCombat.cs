@@ -1,16 +1,19 @@
-using UnityEngine;
+﻿using UnityEngine;
 using System.Collections.Generic;
 
 /// <summary>
-/// PlayerCombat (Silver Nail)
+/// PlayerCombat (Silver Nail) - DeckManager 연동 완료
 /// - LMB: 탭 = 나무 말뚝 발사
 /// - LMB hold+release: 차지샷
-/// - RMB: 망치 휘두르기 (처형) — now uses Hammer prefab rotation swing
+/// - RMB: 망치 휘두르기 (처형) — DeckManager의 스킬 카드 시스템 사용
 /// </summary>
 public class PlayerCombat : MonoBehaviour
 {
     [Header("Status")]
     [SerializeField] private HealthSystem healthSystem;
+
+    [Header("Deck System")]
+    [SerializeField] private DeckManager deckManager;
 
     [Header("Weapon 1: Wood Stake (Basic)")]
     [SerializeField] private int maxAmmo = 1;
@@ -31,7 +34,7 @@ public class PlayerCombat : MonoBehaviour
     [SerializeField] private bool isChargeShotEnabled = true;
 
     [Header("Weapon 3: Hammer (Execution)")]
-    [SerializeField] private GameObject hammerPrefab; // 프리팹을 인스펙터에서 할당하세요
+    [SerializeField] private GameObject hammerPrefab;
     [Tooltip("해머가 스폰될 로컬 오프셋 (플레이어 기준)")]
     [SerializeField] private Vector2 hammerSpawnOffset = new Vector2(0.8f, 0f);
     [Tooltip("휘두를 각도(총 회전각)")]
@@ -39,19 +42,18 @@ public class PlayerCombat : MonoBehaviour
     [Tooltip("휘두르는 시간(초)")]
     [SerializeField] private float hammerSwingDuration = 0.28f;
 
-    // 복원: 해머 동작에 필요한 필드들 (컴파일 에러 방지)
-    [SerializeField] private float hammerDamage = 10f; // 약한 기본 피해
+    [SerializeField] private float hammerDamage = 10f;
     [SerializeField] private float hammerCooldown = 1.5f;
     [SerializeField] private float hammerKnockbackForce = 8f;
-    [SerializeField] private float hammerExecuteHeal = 20f; // 처형 시 회복량 (설정 가능)
+    [SerializeField] private float hammerExecuteHeal = 20f;
 
-    // 추가: 애니메이션 커브로 스윙 속도 조절
     [Tooltip("스윙 진행을 제어하는 애니메이션 커브 (시간 0->1)")]
     [SerializeField] private AnimationCurve hammerSwingCurve = AnimationCurve.EaseInOut(0f, 0f, 1f, 1f);
 
     [Header("우클릭 공격 (Secondary)")]
     [Tooltip("우클릭 처형 공격 활성화 여부")]
     [SerializeField] private bool isSecondaryChargeShotEnabled = true;
+
     [Header("Execution Settings")]
     [Tooltip("처형 감지 반경")]
     [SerializeField] private float executionRange = 3.5f;
@@ -68,12 +70,12 @@ public class PlayerCombat : MonoBehaviour
     private SecondaryChargedAttackType currentSkillType = SecondaryChargedAttackType.None;
 
     [Header("Skill Test Mode")]
-    [Tooltip("테스트 모드 활성화 (1,2,3,4 키로 스킬 교체)")]
+    [Tooltip("테스트 모드 활성화 (5,6,7,8 키로 스킬 교체)")]
     [SerializeField] private bool enableSkillTestMode = false;
 
     [Header("Skill: Chain Retrieve")]
-    [SerializeField] private float retrieveRange = 10f; // 회수 가능 거리
-    [SerializeField] private LayerMask projectileLayer; // 투사체 레이어
+    [SerializeField] private float retrieveRange = 10f;
+    [SerializeField] private LayerMask projectileLayer;
 
     // 내부 쿨타임 변수
     private float fireTimer = 0f;
@@ -83,7 +85,6 @@ public class PlayerCombat : MonoBehaviour
     private bool isCharging = false;
     private float chargeTimer = 0f;
 
-    // 테스트용 (선택적)
     private ProjectileTestController testController;
 
     private void Awake()
@@ -91,36 +92,75 @@ public class PlayerCombat : MonoBehaviour
         if (healthSystem == null) healthSystem = GetComponent<HealthSystem>();
         currentAmmo = maxAmmo;
 
-        // 테스트 컨트롤러 찾기 (있으면)
+        // DeckManager 찾기
+        if (deckManager == null)
+        {
+            deckManager = FindObjectOfType<DeckManager>();
+            if (deckManager == null)
+            {
+                Debug.LogWarning("[PlayerCombat] DeckManager를 찾을 수 없습니다!");
+            }
+        }
+
         testController = GetComponent<ProjectileTestController>();
 
         // 스킬 Dictionary 초기화
         InitializeSkillDictionary();
 
-        // 기존 방식 호환 (currentSecondaryChargedAttackComponent)
-        if(currentSecondaryChargedAttackComponent == null)
+        // DeckManager 연동은 Start()에서 처리 (DeckManager.Start() 이후에 실행되도록)
+    }
+
+    private void Start()
+    {
+        // DeckManager에서 준비된 스킬을 가져와서 장착
+        if (deckManager != null)
         {
-            var tempClass = GetComponent<ISecondaryChargedAttack>();
-            currentSecondaryChargedAttackComponent = tempClass as MonoBehaviour;
-        }
-        // 우클릭 차징공격 초기화
-        if (currentSecondaryChargedAttackComponent != null)
-        {
-            if (currentSecondaryChargedAttackComponent is ISecondaryChargedAttack attackComponent)
+            SecondaryChargedAttackType readySkill = deckManager.GetReadySkillType();
+            if (readySkill != SecondaryChargedAttackType.None)
             {
-                currentSecondaryChargedAttack = attackComponent;
-                currentSkillType = attackComponent.GetSkillType();
-                Debug.Log($"[Combat] 우클릭 차징공격 초기화(Component): {currentSecondaryChargedAttack.GetAttackName()}, Type: {currentSkillType}");
+                EquipSkill(readySkill);
+                Debug.Log($"[Combat] DeckManager에서 초기 스킬 로드: {readySkill}");
             }
             else
             {
-                Debug.LogWarning("[Combat] currentSecondaryChargedAttackComponent가 ISecondaryChargedAttack를 구현하지 않습니다.");
+                Debug.LogWarning("[Combat] DeckManager에 준비된 스킬이 없습니다!");
+                // 기존 방식으로 폴백
+                if (currentSecondaryChargedAttackComponent != null)
+                {
+                    if (currentSecondaryChargedAttackComponent is ISecondaryChargedAttack attackComponent)
+                    {
+                        currentSecondaryChargedAttack = attackComponent;
+                        currentSkillType = attackComponent.GetSkillType();
+                    }
+                }
+                else
+                {
+                    EquipFirstAvailableSkill();
+                }
             }
         }
         else
         {
-            // currentSecondaryChargedAttackComponent가 없으면 Dictionary에서 첫 번째 None이 아닌 스킬 장착
-            EquipFirstAvailableSkill();
+            // DeckManager가 없으면 기존 방식 사용
+            if (currentSecondaryChargedAttackComponent == null)
+            {
+                var tempClass = GetComponent<ISecondaryChargedAttack>();
+                currentSecondaryChargedAttackComponent = tempClass as MonoBehaviour;
+            }
+
+            if (currentSecondaryChargedAttackComponent != null)
+            {
+                if (currentSecondaryChargedAttackComponent is ISecondaryChargedAttack attackComponent)
+                {
+                    currentSecondaryChargedAttack = attackComponent;
+                    currentSkillType = attackComponent.GetSkillType();
+                    Debug.Log($"[Combat] 우클릭 차징공격 초기화(Component): {currentSecondaryChargedAttack.GetAttackName()}, Type: {currentSkillType}");
+                }
+            }
+            else
+            {
+                EquipFirstAvailableSkill();
+            }
         }
     }
 
@@ -131,7 +171,6 @@ public class PlayerCombat : MonoBehaviour
     {
         skillDictionary = new Dictionary<SecondaryChargedAttackType, ISecondaryChargedAttack>();
 
-        // 이 게임오브젝트에 붙어있는 모든 ISecondaryChargedAttack 구현체를 찾음
         MonoBehaviour[] components = GetComponents<MonoBehaviour>();
 
         foreach (var comp in components)
@@ -140,7 +179,6 @@ public class PlayerCombat : MonoBehaviour
             {
                 SecondaryChargedAttackType skillType = skill.GetSkillType();
 
-                // 이미 등록된 타입이면 경고
                 if (skillDictionary.ContainsKey(skillType))
                 {
                     Debug.LogWarning($"[Combat] 중복된 스킬 타입 발견: {skillType}. 기존 스킬을 유지합니다.");
@@ -166,7 +204,6 @@ public class PlayerCombat : MonoBehaviour
             return;
         }
 
-        // None이 아닌 첫 번째 스킬을 찾아서 장착
         foreach (var kvp in skillDictionary)
         {
             if (kvp.Key != SecondaryChargedAttackType.None)
@@ -177,7 +214,6 @@ public class PlayerCombat : MonoBehaviour
             }
         }
 
-        // None만 있는 경우
         if (skillDictionary.ContainsKey(SecondaryChargedAttackType.None))
         {
             EquipSkill(SecondaryChargedAttackType.None);
@@ -187,17 +223,14 @@ public class PlayerCombat : MonoBehaviour
 
     private void Update()
     {
-        // 쿨타임 감소
         if (fireTimer > 0) fireTimer -= Time.deltaTime;
         if (hammerTimer > 0) hammerTimer -= Time.deltaTime;
 
-        // 좌클릭 차지 진행 (PlayerController에서 OnPrimaryDown/Up으로 제어)
         if (isCharging)
         {
             chargeTimer += Time.deltaTime;
         }
 
-        // 테스트 모드: 5,6,7,8 키로 스킬 교체
         if (enableSkillTestMode)
         {
             HandleSkillTestInput();
@@ -205,7 +238,7 @@ public class PlayerCombat : MonoBehaviour
     }
 
     /// <summary>
-    /// 테스트 모드 키 입력 처리 (1,2,3,4 키로 스킬 교체)
+    /// 테스트 모드 키 입력 처리 (5,6,7,8 키로 스킬 교체)
     /// </summary>
     private void HandleSkillTestInput()
     {
@@ -239,11 +272,9 @@ public class PlayerCombat : MonoBehaviour
         }
     }
 
-    // 입력 연동 API (PlayerController가 호출)
     public void OnPrimaryDown()
     {
-        // 시작: 차지 상태로 전환
-        if (fireTimer > 0) return; // 발사 쿨타임 중이면 무시
+        if (fireTimer > 0) return;
         isCharging = true;
         chargeTimer = 0f;
     }
@@ -253,7 +284,6 @@ public class PlayerCombat : MonoBehaviour
         if (!isCharging) return;
         isCharging = false;
 
-        // 차징샷이 활성화되어 있고 차지 시간을 충족한 경우
         if (isChargeShotEnabled && chargeTimer >= chargeTimeRequired)
         {
             TryFireChargedStake();
@@ -264,35 +294,27 @@ public class PlayerCombat : MonoBehaviour
         }
     }
 
-    /// <summary>
-    /// 일반 나무 말뚝 발사 (좌클릭 탭)
-    /// - 탄약이 0이면 BloodStake 시도
-    /// - ProjectileTestController가 있으면 해당 Config로 발사
-    /// </summary>
     public void TryFireWoodStake()
     {
         if (fireTimer > 0) return;
 
         if (currentAmmo <= 0)
         {
-            // 탄약이 없으면 HP 기반 발사 시도
             TryFireBloodStake();
             return;
         }
 
         fireTimer = fireRate;
-        currentAmmo--; // 탄환 소모
+        currentAmmo--;
 
         Vector2 dir = GetAimDirection();
 
-        // 테스트 모드: ProjectileTestController가 있으면 선택된 Config 사용
         ProjectileConfig testConfig = null;
         if (testController != null)
         {
             testConfig = testController.GetCurrentConfig();
         }
 
-        // AttackManager로 발사
         if (AttackManager.Instance != null)
         {
             AttackManager.Instance.FireStake(
@@ -302,16 +324,11 @@ public class PlayerCombat : MonoBehaviour
                 isBloodStake: false,
                 attacker: transform,
                 bloodHpCost: 0f,
-                configOverride: testConfig  // 테스트 config 전달 (null이면 기본 동작)
+                configOverride: testConfig
             );
         }
-        else
-        {
-            Debug.LogWarning("AttackManager.Instance 없음 - 기본 발사 로직이 실행되지 않음");
-        }
 
-        Debug.Log($"[Combat] 나무 말뚝 발사! 남은 탄환: {currentAmmo}/{maxAmmo}" +
-                  (testConfig != null ? $" [테스트 모드 {testController.GetCurrentMode()}]" : ""));
+        Debug.Log($"[Combat] 나무 말뚝 발사! 남은 탄환: {currentAmmo}/{maxAmmo}");
     }
 
     private void TryFireChargedStake()
@@ -320,7 +337,6 @@ public class PlayerCombat : MonoBehaviour
 
         int chargedAmmoCost = AttackManager.Instance != null ? AttackManager.Instance.chargedAmmoCost : 1;
 
-        // 탄약이 충분한 경우: 일반 차징샷
         if (currentAmmo >= chargedAmmoCost)
         {
             currentAmmo -= chargedAmmoCost;
@@ -338,53 +354,33 @@ public class PlayerCombat : MonoBehaviour
                     bloodHpCost: 0f
                 );
             }
-            else
-            {
-                Debug.LogWarning("AttackManager.Instance 없음 - 차징샷 발사 실패");
-            }
 
             Debug.Log($"[Combat] 차지샷 발사! 탄약 -{chargedAmmoCost} (남음: {currentAmmo}/{maxAmmo})");
         }
-        // 탄약이 부족한 경우: 블러드 차징샷 시도
         else
         {
             TryFireBloodChargedStake();
         }
     }
 
-    /// <summary>
-    /// 블러드 차징샷: HP를 소모하여 차징샷 발사
-    /// </summary>
     private void TryFireBloodChargedStake()
     {
-        if (healthSystem == null)
-        {
-            Debug.LogWarning("TryFireBloodChargedStake: HealthSystem이 할당되지 않았습니다.");
-            return;
-        }
+        if (healthSystem == null) return;
 
         int chargedAmmoCost = AttackManager.Instance != null ? AttackManager.Instance.chargedAmmoCost : 1;
-
-        // HP 비용: (일반 말뚝 HP 비용) × (차징샷 탄약 소모량)
-        // 예: 일반 말뚝 = 최대체력 10%, 차징샷 탄약 10개 → 블러드 차징샷 = 최대체력 100%
         float hpCost = Mathf.Max(0f, healthSystem.GetMaxHealth() * bloodStakeHpPercent * chargedAmmoCost);
 
-        // 자살 방지: 현재 HP가 비용보다 커야 발사 가능
         if (healthSystem.GetCurrentHealth() <= hpCost)
         {
             Debug.Log("❌ HP가 부족하여 블러드 차징샷을 발사할 수 없습니다.");
             return;
         }
 
-        // 자기 체력 소모
         healthSystem.TakeDamage(hpCost);
-
-        // 발사 쿨다운 적용
         fireTimer = fireRate;
 
         Vector2 dir = GetAimDirection();
 
-        // 블러드 차징샷 발사
         if (AttackManager.Instance != null)
         {
             AttackManager.Instance.FireChargedStakeProjectile(
@@ -395,17 +391,10 @@ public class PlayerCombat : MonoBehaviour
                 bloodHpCost: hpCost
             );
         }
-        else
-        {
-            Debug.LogWarning("AttackManager.Instance 없음 - 블러드 차징샷 발사 실패");
-        }
 
-        Debug.Log($"[Combat] 블러드 차징샷 발사! HP -{hpCost:F1} (남은 HP: {healthSystem.GetCurrentHealth():F1})");
+        Debug.Log($"[Combat] 블러드 차징샷 발사! HP -{hpCost:F1}");
     }
 
-    /// <summary>
-    /// 망치 휘두르기 (RMB/E) - 프리팹 기반 회전 휘두르기
-    /// </summary>
     public void TrySwingHammer(bool enableExecution = true)
     {
         if (hammerTimer > 0) return;
@@ -418,14 +407,12 @@ public class PlayerCombat : MonoBehaviour
 
         hammerTimer = hammerCooldown;
 
-        // 스폰 위치 계산 (월드) — 플레이어 회전을 고려하여 로컬 오프셋을 월드로 변환
         Vector3 spawnPos = transform.position + (Vector3)(transform.rotation * hammerSpawnOffset);
 
         GameObject go = Instantiate(hammerPrefab, spawnPos, Quaternion.identity);
         var hc = go.GetComponent<HammerSwingController>();
         if (hc != null)
         {
-            // 로컬 오프셋과 커브를 함께 전달
             hc.Initialize(
                 owner: this,
                 ownerTransform: transform,
@@ -441,30 +428,19 @@ public class PlayerCombat : MonoBehaviour
         }
         else
         {
-            Debug.LogWarning("hammerPrefab에 HammerSwingController 컴포넌트가 없습니다.");
             Destroy(go);
         }
 
-        // --- 새로 추가: 플레이어와 해머 충돌 무시 설정 ---
         Collider2D hammerCol = go.GetComponent<Collider2D>();
         Collider2D playerCol = GetComponent<Collider2D>();
         if (hammerCol != null && playerCol != null)
         {
             Physics2D.IgnoreCollision(hammerCol, playerCol, true);
         }
-        // (기본적으로 해머 프리팹에 Rigidbody2D.BodyType = Kinematic 설정을 권장합니다.)
     }
 
-    /// <summary>
-    /// 사슬 회수 시도(예: R키)
-    /// - 주변의 회수 가능한 AttackProjectile을 찾아 StartReturn() 호출
-    /// </summary>
     public void TryRetrieveStake()
     {
-        // StakeRetrievalSkill을 사용하지 않고 RetrievalBehavior를 직접 사용
-        // (StuckEnemyPull 등 새로운 회수 로직 적용을 위해)
-
-        // 모든 AttackProjectile 찾기
         var allProjectiles = FindObjectsOfType<AttackProjectile>();
 
         Debug.Log($"[Combat] TryRetrieveStake: {allProjectiles.Length}개 투사체 발견");
@@ -475,7 +451,6 @@ public class PlayerCombat : MonoBehaviour
             if (proj == null) continue;
             if (!proj.gameObject.activeInHierarchy) continue;
 
-            // RetrievalBehavior 사용하여 회수
             proj.StartReturn(suppressAmmo: false, immediatePickup: false, useRetrievalBehavior: true);
             any = true;
         }
@@ -483,19 +458,12 @@ public class PlayerCombat : MonoBehaviour
         if (!any) Debug.Log("[Combat] TryRetrieveStake: 회수 가능한 투사체 없음");
     }
 
-    /// <summary>
-    /// 탄환 회복 (말뚝 회수 시 호출)
-    /// </summary>
     public void RecoverAmmo(int amount)
     {
         currentAmmo = Mathf.Min(currentAmmo + amount, maxAmmo);
         Debug.Log($"[Combat] 탄환 회복! ({currentAmmo}/{maxAmmo})");
     }
 
-    /// <summary>
-    /// 처형 성공 시 Player에게 회복/탄환 보상을 주는 콜백
-    /// - AttackManager/EnemyController/HammerSwingController에서 호출
-    /// </summary>
     public void OnExecutionSuccess(float healAmount, int ammoReward)
     {
         if (healthSystem != null && healAmount > 0f)
@@ -509,71 +477,49 @@ public class PlayerCombat : MonoBehaviour
         }
     }
 
-    // 공개 접근자: 현재 탄약/최대 탄약
     public int GetCurrentAmmo() => currentAmmo;
     public int GetMaxAmmo() => maxAmmo;
 
-    // 차징샷 활성화/비활성화
     public void EnableChargeShot() => isChargeShotEnabled = true;
     public void DisableChargeShot() => isChargeShotEnabled = false;
     public void SetChargeShotEnabled(bool enabled) => isChargeShotEnabled = enabled;
     public bool IsChargeShotEnabled() => isChargeShotEnabled;
 
-    /// <summary>
-    /// 외부에서 읽을 수 있도록 차지 관련 상태/값 공개
-    /// - AimingUI나 다른 시스템에서 chargeTimeRequired, 현재 진행도, 준비 상태를 조회할 수 있게 함.
-    /// </summary>
     public float ChargeTimeRequired => chargeTimeRequired;
     public float GetChargeProgress() => chargeTimeRequired > 0f ? Mathf.Clamp01(chargeTimer / chargeTimeRequired) : 1f;
     public bool IsCharging() => isCharging;
     public bool IsChargeReady() => isCharging && chargeTimer >= chargeTimeRequired;
 
-    /// <summary>
-    /// 마우스 방향 계산 헬퍼
-    /// </summary>
     private Vector2 GetAimDirection()
     {
         Vector3 mousePos = Camera.main.ScreenToWorldPoint(Input.mousePosition);
         return (mousePos - transform.position).normalized;
     }
 
-    // 추가: Shift+LMB(피 말뚝) 호출 대응 메서드 TryFireBloodStake()
     public void TryFireBloodStake()
     {
         if (fireTimer > 0) return;
+        if (healthSystem == null) return;
 
-        if (healthSystem == null)
-        {
-            Debug.LogWarning("TryFireBloodStake: HealthSystem이 할당되지 않았습니다.");
-            return;
-        }
-
-        // HP 비용: 최대체력의 percent
         float hpCost = Mathf.Max(0f, healthSystem.GetMaxHealth() * bloodStakeHpPercent);
 
-        // 자살 방지: 현재 HP가 비용보다 커야 발사 가능
         if (healthSystem.GetCurrentHealth() <= hpCost)
         {
             Debug.Log("❌ HP가 부족하여 피 말뚝을 발사할 수 없습니다.");
             return;
         }
 
-        // 자기 체력 소모
         healthSystem.TakeDamage(hpCost);
-
-        // 발사 쿨다운 적용
         fireTimer = fireRate;
 
         Vector2 dir = GetAimDirection();
 
-        // 테스트 모드: ProjectileTestController가 있으면 선택된 Config 사용 (일반 stake와 동일)
         ProjectileConfig testConfig = null;
         if (testController != null)
         {
             testConfig = testController.GetCurrentConfig();
         }
 
-        // 말뚝 발사: isBloodStake = true 로 구분하여 처리, bloodHpCost 전달
         if (AttackManager.Instance != null)
         {
             AttackManager.Instance.FireStake(
@@ -583,27 +529,21 @@ public class PlayerCombat : MonoBehaviour
                 isBloodStake: true,
                 attacker: transform,
                 bloodHpCost: hpCost,
-                configOverride: testConfig  // 테스트 config 전달 (null이면 기본 동작)
+                configOverride: testConfig
             );
         }
-        else
-        {
-            Debug.LogWarning("AttackManager.Instance 없음 - 피 말뚝 발사 실패");
-        }
 
-        Debug.Log($"[Combat] 피 말뚝 발사! HP -{hpCost:F1} (남은 HP: {healthSystem.GetCurrentHealth():F1})");
+        Debug.Log($"[Combat] 피 말뚝 발사! HP -{hpCost:F1}");
     }
 
-    // ==================== 우클릭 공격 시스템 ====================
+    // ==================== 우클릭 공격 시스템 (DeckManager 연동) ====================
 
     /// <summary>
-    /// 우클릭 누름 - 그로기 검증 시작
+    /// 우클릭 누름 - 그로기 검증 및 스킬 사용
     /// </summary>
     public void OnSecondaryDown()
     {
-        if (hammerTimer > 0) return; // 망치 쿨타임 체크
-        /*        isSecondaryCharging = true;
-                secondaryChargeTimer = 0f;*/
+        if (hammerTimer > 0) return;
 
         Collider2D targetEnemy = CheckForExecutionTarget();
 
@@ -626,19 +566,15 @@ public class PlayerCombat : MonoBehaviour
         Collider2D closestEnemy = null;
         float closestDist = float.MaxValue;
 
-        // 현재 마우스 방향
         Vector2 aimDir = GetAimDirection();
 
-        foreach(var hit in hits)
+        foreach (var hit in hits)
         {
-            // 타겟 방향 벡터
             Vector2 targetDir = (hit.transform.position - transform.position).normalized;
-            // 각도 계산
             float angleToTarget = Vector2.Angle(aimDir, targetDir);
 
             if (angleToTarget <= executionAngle / 2f)
             {
-                // 그로기 상태인지 확인
                 var enemyCtrl = hit.GetComponent<EnemyController>() ?? hit.GetComponentInParent<EnemyController>();
                 if (enemyCtrl != null && enemyCtrl.IsGroggy())
                 {
@@ -655,29 +591,65 @@ public class PlayerCombat : MonoBehaviour
     }
 
     /// <summary>
-    /// 우클릭 처형 공격 실행 (전략패턴)
+    /// 우클릭 처형 공격 실행 (DeckManager 연동)
     /// </summary>
     private void TryFireSecondaryChargedAttack()
     {
         if (hammerTimer > 0) return;
 
-        if (currentSecondaryChargedAttack == null)
+        // DeckManager 체크
+        if (deckManager == null)
         {
-            Debug.LogWarning("현재 장착된 우클릭 처형 공격 없습니다.");
+            Debug.LogWarning("[Combat] DeckManager가 없어 스킬을 사용할 수 없습니다!");
             return;
         }
 
-        hammerTimer = hammerCooldown; // 쿨타임 적용
+        // 현재 준비된 스킬 확인 (핸드의 첫 번째 카드)
+        Card readyCard = deckManager.GetReadySkillCard();
+
+        if (readyCard == null)
+        {
+            Debug.LogWarning("[Combat] 준비된 스킬 카드가 없습니다!");
+            return;
+        }
+
+        // 스킬 타입이 다르면 자동 장착
+        if (readyCard.skillType != currentSkillType)
+        {
+            if (!EquipSkill(readyCard.skillType))
+            {
+                Debug.LogWarning($"[Combat] 스킬 장착 실패: {readyCard.skillType}");
+                return;
+            }
+        }
+
+        // 스킬 실행
+        if (currentSecondaryChargedAttack == null)
+        {
+            Debug.LogWarning("[Combat] 장착된 스킬 컴포넌트가 없습니다!");
+            return;
+        }
+
+        hammerTimer = hammerCooldown;
 
         // 전략패턴 Execute 호출
         currentSecondaryChargedAttack.Execute(this, transform);
 
-        Debug.Log($"[Combat] 우클릭 처형 공격 발사! ({currentSecondaryChargedAttack.GetAttackName()})");
+        Debug.Log($"[Combat] 처형 스킬 발동: {readyCard.cardName} ({readyCard.skillType})");
+
+        // DeckManager에 카드 사용 알림
+        bool success = deckManager.UseCard(0);
+
+        if (success)
+        {
+            Debug.Log($"[Combat] 스킬 카드 사용 완료. 다음 스킬로 교체됨.");
+        }
+        else
+        {
+            Debug.LogWarning($"[Combat] 스킬 카드 사용 실패!");
+        }
     }
 
-    /// <summary>
-    /// 우클릭 처형 공격 교체 (외부 업그레이드 시스템에서 호출)
-    /// </summary>
     public void SetSecondaryChargedAttack(ISecondaryChargedAttack attack)
     {
         currentSecondaryChargedAttack = attack;
@@ -689,8 +661,6 @@ public class PlayerCombat : MonoBehaviour
     /// <summary>
     /// 스킬 장착 (enum 타입으로 스킬 변경)
     /// </summary>
-    /// <param name="skillType">장착할 스킬 타입</param>
-    /// <returns>장착 성공 여부</returns>
     public bool EquipSkill(SecondaryChargedAttackType skillType)
     {
         if (skillDictionary == null)
@@ -705,7 +675,6 @@ public class PlayerCombat : MonoBehaviour
             return false;
         }
 
-        // 상태패턴: 레퍼런스 캐싱
         currentSecondaryChargedAttack = skillDictionary[skillType];
         currentSkillType = skillType;
 
@@ -713,25 +682,16 @@ public class PlayerCombat : MonoBehaviour
         return true;
     }
 
-    /// <summary>
-    /// 현재 장착된 스킬 타입 반환
-    /// </summary>
     public SecondaryChargedAttackType GetCurrentSkillType()
     {
         return currentSkillType;
     }
 
-    /// <summary>
-    /// 특정 스킬을 보유하고 있는지 확인
-    /// </summary>
     public bool HasSkill(SecondaryChargedAttackType skillType)
     {
         return skillDictionary != null && skillDictionary.ContainsKey(skillType);
     }
 
-    /// <summary>
-    /// 현재 장착된 스킬 이름 반환 (디버그/UI용)
-    /// </summary>
     public string GetCurrentSkillName()
     {
         if (currentSecondaryChargedAttack != null)
@@ -741,16 +701,62 @@ public class PlayerCombat : MonoBehaviour
         return "없음";
     }
 
-    /// <summary>
-    /// 에디터에서 감지 범위 시각화 (디버깅용)
-    /// </summary>
+    // ==================== 디버그 ====================
+
+#if UNITY_EDITOR
+    [ContextMenu("현재 스킬 정보")]
+    private void PrintCurrentSkillInfo()
+    {
+        Debug.Log($"=== PlayerCombat 스킬 정보 ===");
+        Debug.Log($"현재 장착된 스킬: {currentSkillType} ({GetCurrentSkillName()})");
+
+        if (deckManager != null)
+        {
+            Debug.Log($"\n[DeckManager 연동 상태]");
+
+            Card readyCard = deckManager.GetReadySkillCard();
+            if (readyCard != null)
+            {
+                Debug.Log($"준비된 스킬 (핸드[0]): {readyCard.skillType} - {readyCard.cardName}");
+            }
+            else
+            {
+                Debug.Log($"준비된 스킬: 없음 (핸드 비어있음)");
+            }
+
+            Card nextCard = deckManager.GetNextSkillCard();
+            if (nextCard != null)
+            {
+                Debug.Log($"다음 스킬 (덱[0]): {nextCard.skillType} - {nextCard.cardName}");
+            }
+            else
+            {
+                Debug.Log($"다음 스킬: 없음 (덱 비어있음)");
+            }
+
+            Debug.Log($"\n덱 상태:");
+            Debug.Log($"  덱: {deckManager.GetDeckCount()}장");
+            Debug.Log($"  핸드: {deckManager.GetHandCount()}장");
+            Debug.Log($"  버린 더미: {deckManager.GetDiscardPileCount()}장");
+        }
+        else
+        {
+            Debug.LogWarning("DeckManager가 연결되지 않았습니다!");
+        }
+    }
+
+    [ContextMenu("테스트: 스킬 사용")]
+    private void TestUseSkill()
+    {
+        TryFireSecondaryChargedAttack();
+    }
+#endif
+
     private void OnDrawGizmosSelected()
     {
         Gizmos.color = Color.red;
-        // 원 그리기
         Gizmos.DrawWireSphere(transform.position, executionRange);
 
-        // 부채꼴 라인 그리기 (현재 바라보는 방향 기준이 아니므로 대략적인 확인용)
         Vector3 rightDir = Quaternion.Euler(0, 0, executionAngle * 0.5f) * Vector3.right;
         Vector3 leftDir = Quaternion.Euler(0, 0, -executionAngle * 0.5f) * Vector3.right;
 
