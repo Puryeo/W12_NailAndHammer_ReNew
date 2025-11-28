@@ -107,6 +107,8 @@ public class SpineHammerController : MonoBehaviour
             if (alreadyHitIds.Contains(id)) continue;
             alreadyHitIds.Add(id);
 
+            SpawnSpineWave(c.transform.position);
+
             //그로기 상태인가?
             if (enemyCtrl.IsGroggy())
             {
@@ -135,8 +137,6 @@ public class SpineHammerController : MonoBehaviour
 
         // 가시 소환
         enemy.ApplyImpale(3.0f); // 속박
-
-        SpawnSpineWave(hitPos);
 
         // 처형 이펙트 및 사망 처리
         var enemyHealth = enemy.GetComponent<HealthSystem>();
