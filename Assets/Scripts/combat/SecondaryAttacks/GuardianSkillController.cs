@@ -1,5 +1,6 @@
 using UnityEngine;
 using System.Collections;
+using System.Reflection;
 
 [DisallowMultipleComponent]
 public class GuardianSkillController : MonoBehaviour, ISecondaryChargedAttack
@@ -167,29 +168,87 @@ public class GuardianSkillController : MonoBehaviour, ISecondaryChargedAttack
         // Phase 3: 해머 생성 및 휘두르기 (Hammer prefab 필요)
         // - 해머는 guardian을 부모로 삼아 guardian 기준 localOffset에서 휘두름
         // - HammerSwingController 내부에서 ownerCombat(플레이어)을 사용하여 처형 보상 처리 가능
+        // 
+        // 변경 요점:
+        // - Initialize에 전달하는 swingAngle을 우선적으로 플레이어(PlayerCombat)의 설정값에서 읽어 사용하도록 하여
+        //   일반 해머와 동일한 시작 각도가 되게 함. (PlayerCombat 변경 없음)
+        // - 해머 Instantiate 시 회전을 Quaternion.identity로 하여 플레이어 케이스와 초기 로컬 회전 기준을 동일하게 함.
+        // - 추가: PlayerCombat이 사용하는 같은 AnimationCurve(hammerSwingCurve)도 리플렉션으로 읽어 전달하여
+        //   startSweep 계산(시각적 시작 각도)에 일관성을 맞춤.
         // ------------------------------------------------
         GameObject hammer = null;
         GameObject hammerTrailObj = null;
 
         if (hammerPrefab != null)
         {
-            // instantiate at guardian world pos; HammerSwingController will parent it to ownerTransform (we pass guardian as ownerTransform)
-            hammer = Object.Instantiate(hammerPrefab, guardian.transform.position, guardian.transform.rotation);
+            // 해머의 실제 월드 스폰 위치:
+            // 변경: 가디언 회전이 아닌 플레이어(ownerTransform) 기준으로 spawnOffset + hammerLocalOffset 합쳐서 계산
+            Vector3 hammerWorldPos;
+            if (ownerTransform != null)
+            {
+                Vector3 combinedLocal = new Vector3(spawnOffset.x + hammerLocalOffset.x, spawnOffset.y + hammerLocalOffset.y, 0f);
+                hammerWorldPos = ownerTransform.TransformPoint(combinedLocal);
+            }
+            else
+            {
+                // ownerTransform이 없을 경우 기존 방식(guardian 기준) 사용
+                hammerWorldPos = guardian.transform.TransformPoint(new Vector3(hammerLocalOffset.x, hammerLocalOffset.y, 0f));
+            }
+
+            // Instantiate 시 rotation은 identity로 유지(플레이어 케이스와 동일 기준)
+            hammer = Object.Instantiate(hammerPrefab, hammerWorldPos, Quaternion.identity);
+
             var hc = hammer.GetComponent<HammerSwingController>();
             if (hc != null)
             {
-                // owner : 플레이어의 PlayerCombat (처형 보상 등 필요 시 사용)
-                // ownerTransform : guardian.transform => 해머가 수호신을 기준으로 로컬 오프셋을 적용해 휘두름
+                // localOffset을 플레이어 로컬 좌표로 정확히 전달
+                Vector2 localOffsetForPlayer = hammerLocalOffset;
+                if (ownerTransform != null)
+                {
+                    // 이제 owner 로컬에서의 위치는 spawnOffset + hammerLocalOffset 이므로 바로 사용 가능
+                    localOffsetForPlayer = new Vector2(spawnOffset.x + hammerLocalOffset.x, spawnOffset.y + hammerLocalOffset.y);
+                }
+
+                // swingAngle 우선 순위: PlayerCombat의 private field(hammerSwingAngle)를 리플렉션으로 읽어오되,
+                // 실패하면 Guardian에 설정된 swingAngle을 사용.
+                float swingAngleToUse = this.swingAngle;
+                AnimationCurve speedCurveToUse = this.swingCurve;
+
+                if (owner != null)
+                {
+                    try
+                    {
+                        FieldInfo fi = owner.GetType().GetField("hammerSwingAngle", BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public);
+                        if (fi != null)
+                        {
+                            object val = fi.GetValue(owner);
+                            if (val is float f) swingAngleToUse = f;
+                        }
+
+                        // PlayerCombat의 동일한 AnimationCurve 사용(리플렉션)
+                        FieldInfo fiCurve = owner.GetType().GetField("hammerSwingCurve", BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public);
+                        if (fiCurve != null)
+                        {
+                            object cv = fiCurve.GetValue(owner);
+                            if (cv is AnimationCurve ac) speedCurveToUse = ac;
+                        }
+                    }
+                    catch
+                    {
+                        // 실패 시 Guardian의 설정 사용 (무해)
+                    }
+                }
+
                 hc.Initialize(
                     owner: owner,
-                    ownerTransform: guardian.transform,
+                    ownerTransform: ownerTransform, // 플레이어를 base로 각도 계산(일반 해머와 동일)
                     damage: damage,
                     knockback: knockbackForce,
-                    swingAngle: swingAngle,
+                    swingAngle: swingAngleToUse,
                     swingDuration: swingDuration,
                     executeHealAmount: executeHealAmount,
-                    localOffset: hammerLocalOffset,
-                    speedCurve: swingCurve,
+                    localOffset: localOffsetForPlayer,
+                    speedCurve: speedCurveToUse,
                     enableExecution: true
                 );
 
