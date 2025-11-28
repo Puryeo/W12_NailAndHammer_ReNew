@@ -8,6 +8,7 @@ using System.Collections;
 /// - 애니메이션 커브 기반 이동
 /// - 투사체 콜라이더로 벽 감지
 /// - 3가지 분리 조건: 거리 도달 / 타임아웃 / 벽 충돌
+/// ㅇㅇ
 /// </summary>
 public class StuckEnemyPullRetrievalBehavior : IProjectileRetrievalBehavior
 {
