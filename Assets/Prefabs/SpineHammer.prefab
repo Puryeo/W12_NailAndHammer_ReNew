@@ -11,7 +11,7 @@ GameObject:
   - component: {fileID: 3955312685153522268}
   - component: {fileID: 9059039965320527161}
   - component: {fileID: 8708494667697266119}
-  - component: {fileID: 4112739878146199784}
+  - component: {fileID: -7806884821514215556}
   m_Layer: 0
   m_Name: SpineHammer
   m_TagString: Untagged
@@ -137,7 +137,7 @@ SpriteRenderer:
   m_WasSpriteAssigned: 0
   m_MaskInteraction: 0
   m_SpriteSortPoint: 0
---- !u!114 &4112739878146199784
+--- !u!114 &-7806884821514215556
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -146,7 +146,7 @@ MonoBehaviour:
   m_GameObject: {fileID: 499222343195171404}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 73be66f8c4d3b1c4cad44e009a91d587, type: 3}
+  m_Script: {fileID: 11500000, guid: 9a686d859f9eb57419a806100db62626, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
   speedCurve:

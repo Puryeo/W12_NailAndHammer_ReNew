@@ -277,6 +277,13 @@ public class HealthSystem : MonoBehaviour, IDamageable
         var ec = GetComponent<EnemyController>();
         if (ec != null)
         {
+            // 끌려오기 등으로 다른 오브젝트(투사체)의 자식이면 먼저 부모를 해제하여 풀 반환 시 함께 비활성화되는 것을 방지
+            if (transform.parent != null)
+            {
+                try { transform.SetParent(null, worldPositionStays: true); }
+                catch { }
+            }
+
             // 1) 말뚝 회수를 시작하도록 요청 (startReturn=true)
             //    개별 말뚝이 플레이어에 도달하면 AttackProjectile.CompleteRetrieval()에서 RecoverAmmo를 수행하게 함.
             int started = ec.ConsumeStacks(true, false, null); // startReturn=true, awardImmediately=false

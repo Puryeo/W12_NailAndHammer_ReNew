@@ -3,12 +3,17 @@ using System.Collections;
 using System.Collections.Generic;
 
 /// <summary>
-/// SpineHammerController (통합본)
+/// SpineHammerControllerWithCallback (통합본)
 /// - 망치 이동(내려찍기) 제어
 /// - 타격 판정 및 결과 처리 (일반 타격 vs 가시 처형 분기)
+/// - 처형 시 콜백 기능 추가 (외부에서 추가 스킬 발동 가능)
 /// </summary>
-public class SpineHammerController : MonoBehaviour
+public class SpineHammerControllerWithCallback : MonoBehaviour
 {
+    // 처형 콜백 델리게이트
+    public delegate void OnExecutionCallback(Vector2 hammerPos, Vector2 enemyPos, EnemyController executedEnemy);
+    private OnExecutionCallback onExecutionCallback;
+
     [Header("Motion Settings")]
     [Tooltip("스윙 속도 곡선")]
     [SerializeField] private AnimationCurve speedCurve = AnimationCurve.EaseInOut(0, 0, 1, 1);
@@ -33,9 +38,10 @@ public class SpineHammerController : MonoBehaviour
     private float targetZAngle;
     private bool isSwinging = false;
 
-    // 초기화 (SpineSkill에서 호출)
+    // 초기화 (콜백 파라미터 추가)
     public void Initialize(PlayerCombat owner, float damage, float knockback, float swingDuration, float hitRadius,
-                           GameObject spinePrefab, int spineCount, float spineRadius, float targetAngle)
+                           GameObject spinePrefab, int spineCount, float spineRadius, float targetAngle,
+                           OnExecutionCallback executionCallback = null)
     {
         this.ownerCombat = owner;
         this.damage = damage;
@@ -45,6 +51,7 @@ public class SpineHammerController : MonoBehaviour
 
         this.spineWavePrefab = spinePrefab;
         this.targetZAngle = targetAngle;
+        this.onExecutionCallback = executionCallback;
 
         StartCoroutine(SwingRoutine());
     }
@@ -112,7 +119,7 @@ public class SpineHammerController : MonoBehaviour
             //그로기 상태인가?
             if (enemyCtrl.IsGroggy())
             {
-                // 가시 소환 
+                // 가시 소환
                 ProcessGroggyHit(enemyCtrl, c.transform.position);
                 anyExecution = true;
             }
@@ -127,7 +134,7 @@ public class SpineHammerController : MonoBehaviour
     }
 
     // -----------------------------------------------------------------------
-    // [처형 로직] - 가시 소환 포함
+    // [처형 로직] - 가시 소환 포함 (콜백 추가)
     // -----------------------------------------------------------------------
     private void ProcessGroggyHit(EnemyController enemy, Vector3 hitPos)
     {
@@ -154,7 +161,14 @@ public class SpineHammerController : MonoBehaviour
         // 강한 타격감
         HitEffectManager.PlayHitEffect(EHitSource.Hammer, EHitStopStrength.Strong, EShakeStrength.Strong, hitPos);
 
-        Debug.Log($"[SpineHammer] {enemy.name} 처형 성공 (가시 발동)");
+        // 콜백 호출 (외부에서 추가 스킬 발동 가능)
+        if (onExecutionCallback != null)
+        {
+            Vector2 hammerPos = transform.TransformPoint(new Vector3(1.5f, 0, 0));
+            onExecutionCallback.Invoke(hammerPos, hitPos, enemy);
+        }
+
+        Debug.Log($"[SpineHammerCallback] {enemy.name} 처형 성공 (가시 발동)");
     }
 
     //일반 타격
@@ -184,7 +198,7 @@ public class SpineHammerController : MonoBehaviour
         enemy.RegisterHit(1, ownerCombat.transform);
         //enemy.ConsumeStacks(true, true, ownerCombat);
 
-        Debug.Log($"[SpineHammer] {enemy.name} 일반 타격 (가시 미발동)");
+        Debug.Log($"[SpineHammerCallback] {enemy.name} 일반 타격 (가시 미발동)");
     }
 
     private void SpawnSpineWave(Vector3 spawnPos)

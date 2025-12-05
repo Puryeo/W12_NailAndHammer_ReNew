@@ -1,16 +1,24 @@
-﻿using UnityEngine;
+using UnityEngine;
 using System.Collections;
 using System.Collections.Generic;
 
 /// <summary>
-/// Windmill Execution (윈드밀 처형)
+/// 처형 콜백 델리게이트 (WindmillExecutionWithCallback과 WindmillHammerBehaviorWithCallback에서 공유)
+/// </summary>
+public delegate void WindmillExecutionCallback(Vector2 playerPos, Vector2 enemyPos, EnemyController executedEnemy);
+
+/// <summary>
+/// Windmill Execution With Callback (윈드밀 처형 - 콜백 버전)
 /// - 플레이어에게 직접 붙여서 사용하는 스킬 컴포넌트
 /// - 플레이어 중심으로 망치를 360도 회전시키며 휘두름
 /// - 그로기 상태 적이 있으면 처형 발동
 /// - 적 처치 시마다 1초씩 연장 (최대 6초)
+/// - 처형 시 콜백 기능 추가 (외부에서 추가 스킬 발동 가능)
 /// </summary>
-public class WindmillExecution : MonoBehaviour, ISecondaryChargedAttack
+public class WindmillExecutionWithCallback : MonoBehaviour, ISecondaryChargedAttack
 {
+    private WindmillExecutionCallback onExecutionCallback;
+
     [Header("Hammer Settings")]
     [Tooltip("망치 프리팹 (HammerSwingController 컴포넌트 필요)")]
     [SerializeField] private GameObject hammerPrefab;
@@ -61,8 +69,13 @@ public class WindmillExecution : MonoBehaviour, ISecondaryChargedAttack
     [Header("Debug")]
     [SerializeField] private bool showDebugLogs = false;
 
-    // 인터페이스 구현
+    // 인터페이스 구현 (콜백 파라미터 추가)
     public void Execute(PlayerCombat owner, Transform ownerTransform)
+    {
+        Execute(owner, ownerTransform, null);
+    }
+
+    public void Execute(PlayerCombat owner, Transform ownerTransform, WindmillExecutionCallback executionCallback)
     {
         if (hammerPrefab == null)
         {
@@ -79,13 +92,15 @@ public class WindmillExecution : MonoBehaviour, ISecondaryChargedAttack
             return;
         }
 
+        this.onExecutionCallback = executionCallback;
+
         // 코루틴 실행
         StartCoroutine(ExecuteWindmillRotation(owner, ownerTransform));
     }
 
     public string GetAttackName()
     {
-        return "Windmill Execution";
+        return "Windmill Execution (Callback)";
     }
 
     public SecondaryChargedAttackType GetSkillType()
@@ -119,8 +134,8 @@ public class WindmillExecution : MonoBehaviour, ISecondaryChargedAttack
             hammerController.enabled = false;
         }
 
-        // 망치에 WindmillHammerBehavior 추가
-        var windmillBehavior = hammerObj.AddComponent<WindmillHammerBehavior>();
+        // 망치에 WindmillHammerBehaviorWithCallback 추가
+        var windmillBehavior = hammerObj.AddComponent<WindmillHammerBehaviorWithCallback>();
         windmillBehavior.Initialize(
             owner: owner,
             damage: damage,
@@ -128,7 +143,8 @@ public class WindmillExecution : MonoBehaviour, ISecondaryChargedAttack
             executeHealAmount: executeHealAmount,
             executeKnockbackMultiplier: executeKnockbackMultiplier,
             hitCooldown: hitCooldown,
-            showDebugLogs: showDebugLogs
+            showDebugLogs: showDebugLogs,
+            executionCallback: onExecutionCallback
         );
 
         // 플레이어와 망치 충돌 무시
@@ -240,12 +256,15 @@ public class WindmillExecution : MonoBehaviour, ISecondaryChargedAttack
 }
 
 /// <summary>
-/// Windmill Hammer의 충돌 처리를 담당하는 컴포넌트
+/// Windmill Hammer의 충돌 처리를 담당하는 컴포넌트 (콜백 버전)
 /// - 적과 충돌 시 데미지 및 처형 판정
 /// - 일반 적은 쿨다운마다 반복 데미지
+/// - 처형 시 콜백 호출
 /// </summary>
-public class WindmillHammerBehavior : MonoBehaviour
+public class WindmillHammerBehaviorWithCallback : MonoBehaviour
 {
+    private WindmillExecutionCallback onExecutionCallback;
+
     private PlayerCombat owner;
     private float damage;
     private float knockbackForce;
@@ -271,7 +290,8 @@ public class WindmillHammerBehavior : MonoBehaviour
         float executeHealAmount,
         float executeKnockbackMultiplier,
         float hitCooldown,
-        bool showDebugLogs)
+        bool showDebugLogs,
+        WindmillExecutionCallback executionCallback = null)
     {
         this.owner = owner;
         this.damage = damage;
@@ -280,6 +300,7 @@ public class WindmillHammerBehavior : MonoBehaviour
         this.executeKnockbackMultiplier = executeKnockbackMultiplier;
         this.hitCooldown = hitCooldown;
         this.showDebugLogs = showDebugLogs;
+        this.onExecutionCallback = executionCallback;
     }
 
     private void OnTriggerStay2D(Collider2D collision)
@@ -301,7 +322,7 @@ public class WindmillHammerBehavior : MonoBehaviour
         if (enemyCtrl == null)
         {
             if (showDebugLogs)
-                Debug.Log($"[WindmillHammer] EnemyController 없음: {collision.name}");
+                Debug.Log($"[WindmillHammerCallback] EnemyController 없음: {collision.name}");
             return;
         }
 
@@ -326,7 +347,7 @@ public class WindmillHammerBehavior : MonoBehaviour
             executedEnemies.Add(enemyId);
 
             if (showDebugLogs)
-                Debug.Log($"[WindmillHammer] 처형 시작: {enemyCtrl.name}");
+                Debug.Log($"[WindmillHammerCallback] 처형 시작: {enemyCtrl.name}");
 
             // 스택 소모 (즉시 회수 모드 - startReturn=false)
             //enemyCtrl.ConsumeStacks(startReturn: false, awardImmediatelyToPlayer: false, awardTarget: null);
@@ -380,8 +401,14 @@ public class WindmillHammerBehavior : MonoBehaviour
             killCountPending++;
             totalKills++;
 
+            // 콜백 호출 (외부에서 추가 스킬 발동 가능)
+            if (onExecutionCallback != null && owner != null)
+            {
+                onExecutionCallback.Invoke(owner.transform.position, collision.transform.position, enemyCtrl);
+            }
+
             if (showDebugLogs)
-                Debug.Log($"[WindmillHammer] 처형 완료: {enemyCtrl.name} (총 처치: {totalKills})");
+                Debug.Log($"[WindmillHammerCallback] 처형 완료: {enemyCtrl.name} (총 처치: {totalKills})");
         }
         // 일반 상태인 경우 → 반복 데미지 (쿨다운 적용)
         else
@@ -399,7 +426,7 @@ public class WindmillHammerBehavior : MonoBehaviour
             lastHitTimes[enemyId] = currentTime;
 
             if (showDebugLogs)
-                Debug.Log($"[WindmillHammer] 일반 공격: {enemyCtrl.name}");
+                Debug.Log($"[WindmillHammerCallback] 일반 공격: {enemyCtrl.name}");
 
             // 데미지
             if (enemyHealth != null)

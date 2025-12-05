@@ -3,33 +3,38 @@ using System.Collections;
 using System.Collections.Generic;
 
 /// <summary>
-/// SplashHammerController
-/// - ��ġ �̵�(�������) ����
-/// - Ÿ�� ���� �� ��� ó�� (�Ϲ� Ÿ�� vs ó�� + ����ü �߻�)
+/// SplashHammerControllerWithCallback
+/// - 망치 이동(내려찍기) 제어
+/// - 타격 판정 및 결과 처리 (일반 타격 vs 처형 + 투사체 발생)
+/// - 처형 시 콜백 기능 추가 (외부에서 추가 스킬 발동 가능)
 /// </summary>
-public class SplashHammerController : MonoBehaviour
+public class SplashHammerControllerWithCallback : MonoBehaviour
 {
+    // 처형 콜백 델리게이트
+    public delegate void OnExecutionCallback(Vector2 hammerPos, Vector2 enemyPos, EnemyController executedEnemy);
+    private OnExecutionCallback onExecutionCallback;
+
     [Header("Motion Settings")]
-    [Tooltip("���� �ӵ� �")]
+    [Tooltip("스윙 속도 곡선")]
     [SerializeField] private AnimationCurve speedCurve = AnimationCurve.EaseInOut(0, 0, 1, 1);
 
-    [Tooltip("���� ���� ���� (��ǥ ���� ���� �ڷ� �� ��?)")]
+    [Tooltip("스윙 시작 각도 (목표 각도 기준 뒤로 몇 도?)")]
     [SerializeField] private float swingRange = 120f;
 
-    [Tooltip("��������Ʈ ȸ�� ������ (-90: ������ ���� ��������Ʈ)")]
+    [Tooltip("스프라이트 회전 보정값 (-90: 위쪽이 앞인 스프라이트)")]
     [SerializeField] private float spriteRotationOffset = -90f;
 
     [Header("Behaviour")]
-    [SerializeField] private float quickStun = 0.12f; // �Ϲ� Ÿ�� ���� �ð�
+    [SerializeField] private float quickStun = 0.12f; // 일반 타격 경직 시간
 
-    // ���� ����
+    // 내부 변수
     private PlayerCombat ownerCombat;
     private float damage;
     private float knockback;
     private float swingDuration;
     private float hitRadius;
 
-    // ����ü ������
+    // 투사체 데이터
     private GameObject projectilePrefab;
     private float projectileSpeed;
     private float projectileLifetime;
@@ -40,7 +45,7 @@ public class SplashHammerController : MonoBehaviour
     private float targetZAngle;
     private bool isSwinging = false;
 
-    // �ʱ�ȭ (SplashSkill���� ȣ��)
+    // 초기화 (콜백 파라미터 추가)
     public void Initialize(
         PlayerCombat owner,
         float damage,
@@ -53,7 +58,8 @@ public class SplashHammerController : MonoBehaviour
         float projectileDamageToNormal,
         float projectileDamageToGroggy,
         float targetAngle,
-        bool showDebugLogs)
+        bool showDebugLogs,
+        OnExecutionCallback executionCallback = null)
     {
         this.ownerCombat = owner;
         this.damage = damage;
@@ -68,6 +74,7 @@ public class SplashHammerController : MonoBehaviour
         this.projectileDamageToGroggy = projectileDamageToGroggy;
         this.targetZAngle = targetAngle;
         this.showDebugLogs = showDebugLogs;
+        this.onExecutionCallback = executionCallback;
 
         StartCoroutine(SwingRoutine());
     }
@@ -76,12 +83,12 @@ public class SplashHammerController : MonoBehaviour
     {
         isSwinging = true;
 
-        // 1. ���� ���
+        // 1. 각도 계산
         float finalAngle = targetZAngle + spriteRotationOffset;
         float startAngle = finalAngle + swingRange;
         float elapsed = 0f;
 
-        // 2. ���� �ִϸ��̼�
+        // 2. 스윙 애니메이션
         while (elapsed < swingDuration)
         {
             float t = Mathf.Clamp01(elapsed / swingDuration);
@@ -93,26 +100,26 @@ public class SplashHammerController : MonoBehaviour
             yield return null;
         }
 
-        // 3. ���� ��ġ Ȯ��
+        // 3. 최종 위치 확정
         transform.rotation = Quaternion.Euler(0f, 0f, finalAngle);
 
-        // 4. Ÿ�� ���� ����
+        // 4. 타격 판정 실행
         CheckImpact();
 
-        // 5. ��� �� ����
+        // 5. 잠시 후 삭제
         Destroy(gameObject, 0.1f);
         isSwinging = false;
     }
 
     /// <summary>
-    /// Ÿ�� ���� ����
+    /// 타격 판정 로직
     /// </summary>
     private void CheckImpact()
     {
-        // Ÿ����: �ظ� �Ӹ� �κ�
+        // 타격점: 해머 머리 부분
         Vector2 impactPoint = transform.TransformPoint(new Vector3(1.5f, 0, 0));
 
-        // ���� �� �� ����
+        // 범위 내 적 검출
         Collider2D[] hits = Physics2D.OverlapCircleAll(impactPoint, hitRadius);
         HashSet<int> alreadyHitIds = new HashSet<int>();
 
@@ -123,38 +130,38 @@ public class SplashHammerController : MonoBehaviour
             var enemyCtrl = c.GetComponent<EnemyController>() ?? c.GetComponentInParent<EnemyController>();
             if (enemyCtrl == null) continue;
 
-            // �ߺ� Ÿ�� ����
+            // 중복 타격 방지
             int id = enemyCtrl.GetInstanceID();
             if (alreadyHitIds.Contains(id)) continue;
             alreadyHitIds.Add(id);
 
-            // �׷α� �����ΰ�?
+            // 그로기 상태인가?
             if (enemyCtrl.IsGroggy())
             {
-                // ó�� + ����ü �߻�
+                // 처형 + 투사체 발생
                 ProcessGroggyHit(enemyCtrl, c.transform.position, c.GetComponent<Collider2D>());
             }
             else
             {
-                // �Ϲ� Ÿ��
+                // 일반 타격
                 ProcessNormalHit(enemyCtrl, c.transform.position, impactPoint);
             }
         }
     }
 
     // -----------------------------------------------------------------------
-    // [ó�� ����] - ����ü �߻� ���� (SpineSkill ��� �״��)
+    // [처형 로직] - 투사체 발생 포함 (콜백 추가)
     // -----------------------------------------------------------------------
     private void ProcessGroggyHit(EnemyController enemy, Vector3 hitPos, Collider2D enemyCollider)
     {
         if (showDebugLogs)
-            Debug.Log($"[SplashHammer] {enemy.name} ó�� ���� - ����ü �߻�!");
+            Debug.Log($"[SplashHammerCallback] {enemy.name} 처형 시작 - 투사체 발생!");
 
-        // ���� ȸ�� �� ó�� ��ŷ
+        // 말뚝 회수 및 처형 마킹
         //enemy.ConsumeStacks(startReturn: false, awardImmediatelyToPlayer: false, awardTarget: null);
         enemy.MarkExecuted();
 
-        // ó�� ����Ʈ �� ��� ó��
+        // 처형 이펙트 및 사망 처리
         var enemyHealth = enemy.GetComponent<HealthSystem>();
         if (enemyHealth != null)
         {
@@ -164,11 +171,11 @@ public class SplashHammerController : MonoBehaviour
             var hpe = enemyHealth.GetComponent<HitParticleEffect>();
             if (hpe != null) hpe.PlayExecuteParticle(hitPos);
 
-            // ��� ��� ó�� (ForceDieWithFade)
+            // 강제 사망 처리 (ForceDieWithFade)
             enemyHealth.ForceDieWithFade(1f);
         }
 
-        // ���� Ÿ�ݰ�
+        // 강한 타격감
         HitEffectManager.PlayHitEffect(
             EHitSource.Hammer,
             EHitStopStrength.Strong,
@@ -176,42 +183,49 @@ public class SplashHammerController : MonoBehaviour
             hitPos
         );
 
-        // �÷��̾� ���� (���� ���� - SpineSkill���� ������ �ʿ��ϸ� ����)
+        // 플레이어 보상 (처형 성공)
         if (ownerCombat != null)
         {
             ownerCombat.OnExecutionSuccess(healAmount: 30f, ammoReward: 0);
         }
 
-        // ����ü 8���� �߻� (ó���� �� �ݶ��̴� ����)
+        // 투사체 8방향 발생 (처형된 적 콜라이더 무시)
         SpawnProjectiles(hitPos, enemyCollider);
 
+        // 콜백 호출 (외부에서 추가 스킬 발동 가능)
+        if (onExecutionCallback != null)
+        {
+            Vector2 hammerPos = transform.TransformPoint(new Vector3(1.5f, 0, 0));
+            onExecutionCallback.Invoke(hammerPos, hitPos, enemy);
+        }
+
         if (showDebugLogs)
-            Debug.Log($"[SplashHammer] {enemy.name} ó�� �Ϸ�!");
+            Debug.Log($"[SplashHammerCallback] {enemy.name} 처형 완료!");
     }
 
-    // �Ϲ� Ÿ��
+    // 일반 타격
     private void ProcessNormalHit(EnemyController enemy, Vector3 hitPos, Vector2 sourcePos)
     {
         if (showDebugLogs)
-            Debug.Log($"[SplashHammer] {enemy.name} �Ϲ� Ÿ��");
+            Debug.Log($"[SplashHammerCallback] {enemy.name} 일반 타격");
 
         var health = enemy.GetComponent<HealthSystem>();
         var rb = enemy.GetComponent<Rigidbody2D>();
 
-        // ������
+        // 데미지
         if (health != null) health.TakeDamage(damage);
 
-        // ���� (Stun)
+        // 경직 (Stun)
         if (quickStun > 0f) enemy.ApplyStun(quickStun);
 
-        // �˹� (Knockback)
+        // 넉백 (Knockback)
         if (rb != null)
         {
             Vector2 dir = (hitPos - (Vector3)sourcePos).normalized;
             rb.AddForce(dir * knockback, ForceMode2D.Impulse);
         }
 
-        // Ÿ�� ����Ʈ (�Ϲ� ����)
+        // 타격 이펙트 (일반 강도)
         HitEffectManager.PlayHitEffect(
             EHitSource.Hammer,
             EHitStopStrength.Weak,
@@ -219,42 +233,42 @@ public class SplashHammerController : MonoBehaviour
             hitPos
         );
 
-        // ���� ȸ�� �� ��Ʈ ���
+        // 말뚝 회수 및 히트 등록
         enemy.RegisterHit(1, ownerCombat.transform);
         //enemy.ConsumeStacks(startReturn: true, awardImmediatelyToPlayer: true, awardTarget: ownerCombat);
     }
 
     /// <summary>
-    /// ����ü 8���� �߻� (�����¿� + �밢��)
-    /// ó���� ���� �ݶ��̴��� �浹 ����
+    /// 투사체 8방향 발생 (사방팔방 + 대각선)
+    /// 처형된 적의 콜라이더와 충돌 무시
     /// </summary>
     private void SpawnProjectiles(Vector3 spawnPosition, Collider2D ignoreCollider)
     {
         if (projectilePrefab == null)
         {
-            Debug.LogWarning("[SplashHammer] projectilePrefab�� ���� ����ü�� �߻��� �� �����ϴ�!");
+            Debug.LogWarning("[SplashHammerCallback] projectilePrefab이 없어 투사체를 발생할 수 없습니다!");
             return;
         }
 
-        // 2D 8���� ����
+        // 2D 8방향 벡터
         Vector2[] directions = new Vector2[]
         {
-            Vector2.up,                          // �� (0��)
-            new Vector2(1, 1).normalized,        // ��� (45��)
-            Vector2.right,                       // ������ (90��)
-            new Vector2(1, -1).normalized,       // ���� (135��)
-            Vector2.down,                        // �Ʒ� (180��)
-            new Vector2(-1, -1).normalized,      // ���� (225��)
-            Vector2.left,                        // ���� (270��)
-            new Vector2(-1, 1).normalized        // �»� (315��)
+            Vector2.up,                          // 위 (0도)
+            new Vector2(1, 1).normalized,        // 우상 (45도)
+            Vector2.right,                       // 오른쪽 (90도)
+            new Vector2(1, -1).normalized,       // 우하 (135도)
+            Vector2.down,                        // 아래 (180도)
+            new Vector2(-1, -1).normalized,      // 좌하 (225도)
+            Vector2.left,                        // 왼쪽 (270도)
+            new Vector2(-1, 1).normalized        // 좌상 (315도)
         };
 
         foreach (var direction in directions)
         {
-            // ����ü ����
+            // 투사체 생성
             GameObject projObj = Instantiate(projectilePrefab, spawnPosition, Quaternion.identity);
 
-            // SplashProjectile ������Ʈ �ʱ�ȭ
+            // SplashProjectile 컴포넌트 초기화
             var splashProj = projObj.GetComponent<SplashProjectile>();
             if (splashProj != null)
             {
@@ -264,10 +278,10 @@ public class SplashHammerController : MonoBehaviour
                     lifetime: projectileLifetime,
                     damageToNormal: projectileDamageToNormal,
                     damageToGroggy: projectileDamageToGroggy,
-                    showDebugLogs: true // ����� Ȱ��ȭ
+                    showDebugLogs: true // 디버그 활성화
                 );
 
-                // ó���� ���� �ݶ��̴��� �浹 ����
+                // 처형된 적 콜라이더와 충돌 무시
                 if (ignoreCollider != null)
                 {
                     Collider2D projCollider = projObj.GetComponent<Collider2D>();
@@ -276,19 +290,19 @@ public class SplashHammerController : MonoBehaviour
                         Physics2D.IgnoreCollision(projCollider, ignoreCollider, true);
 
                         if (showDebugLogs)
-                            Debug.Log($"[SplashHammer] ����ü-�� �浹 ���� ���� �Ϸ�");
+                            Debug.Log($"[SplashHammerCallback] 투사체-적 충돌 무시 설정 완료");
                     }
                 }
             }
             else
             {
-                Debug.LogError("[SplashHammer] projectilePrefab�� SplashProjectile ������Ʈ�� �����ϴ�!");
+                Debug.LogError("[SplashHammerCallback] projectilePrefab에 SplashProjectile 컴포넌트가 없습니다!");
                 Destroy(projObj);
             }
         }
 
         if (showDebugLogs)
-            Debug.Log($"[SplashHammer] 8���� ����ü �߻� �Ϸ� (��ġ: {spawnPosition})");
+            Debug.Log($"[SplashHammerCallback] 8방향 투사체 발생 완료 (위치: {spawnPosition})");
     }
 
     private void OnDrawGizmos()

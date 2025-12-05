@@ -6889,7 +6889,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 755c9805cc61a2947aecaf702e0c447c, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  hammerPrefab: {fileID: 499222343195171404, guid: 460554a50deb0e84c897a8aac50ea1d6, type: 3}
+  hammerPrefab: {fileID: 499222343195171404, guid: faf749690ded8b54d81603c26f290d60, type: 3}
   rotationRadius: 1.5
   baseDuration: 2
   extensionPerKill: 1
